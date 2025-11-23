@@ -209,6 +209,7 @@ gestion-academique/
 │   └── api.php             # Routes API
 └── tests/                  # Tests unitaires et fonctionnels
 ```
+Les Enums permettent de définir des valeurs constantes typées
 
 ## Prochaines étapes
 
