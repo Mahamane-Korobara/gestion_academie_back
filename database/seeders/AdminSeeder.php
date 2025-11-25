@@ -32,7 +32,7 @@ class AdminSeeder extends Seeder
         $this->command->warn('═══════════════════════════════════════════════════════');
         $this->command->warn('   INFORMATIONS DE CONNEXION ADMINISTRATEUR');
         $this->command->warn('═══════════════════════════════════════════════════════');
-        $this->command->info('   Email    : admin@gestion-academique.dz');
+        $this->command->info('   Email    : admin@gestion-academique.ml');
         $this->command->info('   Password : admin123456');
         $this->command->warn('═══════════════════════════════════════════════════════');
         $this->command->info('');

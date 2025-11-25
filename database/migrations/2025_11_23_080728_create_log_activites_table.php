@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('logs_activite', function (Blueprint $table) {
+        Schema::create('log_activites', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('action'); // create, update, delete, login, logout
@@ -28,6 +28,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('logs_activite');
+        Schema::dropIfExists('log_activites');
     }
 };
