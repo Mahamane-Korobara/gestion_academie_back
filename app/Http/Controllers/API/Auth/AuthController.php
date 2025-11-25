@@ -12,7 +12,6 @@ use App\Models\LogActivite;
 use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
