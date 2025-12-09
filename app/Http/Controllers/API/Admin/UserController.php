@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
+use App\Notifications\UserCredentialsSent;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -79,16 +81,25 @@ class UserController extends Controller
         try {
             DB::beginTransaction();
 
-            // Créer l'utilisateur
             $userData = $request->only(['role_id', 'name', 'email', 'phone']);
-            
-            // Mot de passe par défaut selon le rôle
-            if ($request->filled('password')) {
-                $userData['password'] = Hash::make($request->password);
-            } else {
-                // Générer un mot de passe par défaut
-                $userData['password'] = Hash::make('password123');
+
+            // Déterminer si c'est un étudiant ou un professeur
+            $isEtudiantOuProf = $request->filled('etudiant') || $request->filled('professeur');
+
+            if ($isEtudiantOuProf) {
+                // Générer un mot de passe temporaire pour étudiants/profs
+                $temporaryPassword = Str::password(10, true, true, false);
+                $userData['password'] = Hash::make($temporaryPassword);
                 $userData['must_change_password'] = true;
+            } else {
+                // Pour les admins (ou autres rôles internes) : mot de passe sans obligation
+                if ($request->filled('password')) {
+                    $userData['password'] = Hash::make($request->password);
+                } else {
+                    // Mot de passe par défaut pour admin (non temporaire)
+                    $userData['password'] = Hash::make('admin123');
+                }
+                $userData['must_change_password'] = false; // pas d'obligation
             }
 
             $user = User::create($userData);
@@ -96,7 +107,10 @@ class UserController extends Controller
             // Créer le profil étudiant si nécessaire
             if ($request->filled('etudiant')) {
                 $anneeActive = AnneeAcademique::active()->first();
-                
+                if (!$anneeActive) {
+                    throw new \Exception('Aucune année académique active n\'est définie. Veuillez en créer une.');
+                }
+
                 Etudiant::create([
                     'user_id' => $user->id,
                     'annee_academique_id' => $anneeActive->id,
@@ -117,8 +131,12 @@ class UserController extends Controller
 
             DB::commit();
 
-            // Invalider les caches
             CacheService::forgetUsers();
+
+            // Envoyer les identifiants par email SEULEMENT pour étudiants/profs
+            if ($isEtudiantOuProf) {
+                $user->notify(new UserCredentialsSent($temporaryPassword));
+            }
 
             return response()->json([
                 'message' => 'Utilisateur créé avec succès',
@@ -172,15 +190,35 @@ class UserController extends Controller
      */
     public function toggleActive(User $user)
     {
-        $user->update(['is_active' => !$user->is_active]);
+        $wasActive = $user->is_active;
+        $user->is_active = !$wasActive;
+        $user->save();
 
         // Invalider les caches
         CacheService::forgetUsers();
         CacheService::forget(CacheService::key('user', $user->id));
 
+        // Si on réactive un compte précédemment désactivé
+        if ($user->is_active && !$wasActive) {
+            // Vérifier que c'est un étudiant ou un professeur pas un admin
+            $userRole = $user->role?->name;
+            if (in_array($userRole, ['etudiant', 'professeur'])) {
+                $newPassword = \Illuminate\Support\Str::password(10, true, true, false);
+                $user->update([
+                    'password' => Hash::make($newPassword),
+                    'must_change_password' => true, // déclenche CheckPasswordChange
+                ]);
+
+                // Envoyer les nouveaux identifiants par email
+                $user->notify(new UserCredentialsSent($newPassword, isReactivation: true));
+            }
+        }
+
         return response()->json([
-            'message' => $user->is_active ? 'Compte activé' : 'Compte désactivé',
-            'user' => new UserResource($user),
+            'message' => $user->is_active 
+                ? 'Compte réactivé. Un nouveau mot de passe a été envoyé par email.' 
+                : 'Compte désactivé avec succès.',
+            'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
         ]);
     }
 

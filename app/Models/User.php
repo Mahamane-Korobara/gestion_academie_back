@@ -25,6 +25,10 @@ class User extends Authenticatable
         'last_login_ip',
     ];
 
+    protected $attributes = [
+        'is_active' => true,
+    ];
+
     protected $hidden = [
         'password',
         'remember_token',

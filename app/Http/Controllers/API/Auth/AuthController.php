@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\Admin\UserResource;
 use App\Models\User;
 use App\Models\LogActivite;
 use App\Enums\ActionLog;
@@ -45,7 +45,6 @@ class AuthController extends Controller
 
         // Créer le token d'authentification
         $token = $user->createToken('auth-token')->plainTextToken;
-        $user->tokens()->skip(5)->delete();
         // Enregistrer le log de connexion
         LogActivite::create([
             'user_id' => $user->id,

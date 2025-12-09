@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 namespace App\Http\Middleware;
 
@@ -10,16 +10,23 @@ class CheckPasswordChange
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Routes exclues de la vérification
+        // Routes exclues
         $excludedRoutes = [
             'api/auth/change-password',
             'api/auth/logout',
             'api/auth/me',
         ];
 
-        // Si l'utilisateur doit changer son mot de passe
-        if ($request->user() 
-            && $request->user()->must_change_password 
+        $user = $request->user();
+
+        // Si l'utilisateur est un admin, on ne lui applique pas la règle
+        if ($user && $user->isAdmin()) {
+            return $next($request);
+        }
+
+        // Pour les non-admins : appliquer la règle
+        if ($user 
+            && $user->must_change_password 
             && !in_array($request->path(), $excludedRoutes)) {
             
             return response()->json([
