@@ -7,6 +7,8 @@ use App\Http\Controllers\API\Admin\FiliereController;
 use App\Http\Controllers\API\Admin\NiveauController;
 use App\Http\Controllers\API\Admin\CoursController;
 use App\Http\Controllers\API\Admin\DashboardController;
+use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
+use App\Http\Controllers\API\Admin\SemestreController;
 
 /*
 |--------------------------------------------------------------------------
@@ -112,6 +114,40 @@ Route::middleware([
         Route::put('/{cours}', [CoursController::class, 'update']);
         Route::patch('/{cours}', [CoursController::class, 'update']);
         Route::delete('/{cours}', [CoursController::class, 'destroy']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des années académiques
+    // -------------------------------------------------------------------------
+    Route::prefix('annees-academiques')->group(function () {
+        Route::get('/', [AnneeAcademiqueController::class, 'index']);
+        Route::get('/active', [AnneeAcademiqueController::class, 'active']);
+        Route::post('/', [AnneeAcademiqueController::class, 'store']);
+        Route::get('/{anneeAcademique}', [AnneeAcademiqueController::class, 'show']);
+        Route::put('/{anneeAcademique}', [AnneeAcademiqueController::class, 'update']);
+        Route::patch('/{anneeAcademique}', [AnneeAcademiqueController::class, 'update']);
+        Route::delete('/{anneeAcademique}', [AnneeAcademiqueController::class, 'destroy']);
+        
+        // Actions spécifiques
+        Route::post('/{anneeAcademique}/activate', [AnneeAcademiqueController::class, 'activate']);
+        Route::post('/{anneeAcademique}/close', [AnneeAcademiqueController::class, 'close']);
+        Route::post('/{anneeAcademique}/create-semestres', [AnneeAcademiqueController::class, 'createSemestres']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des semestres
+    // -------------------------------------------------------------------------
+    Route::prefix('semestres')->group(function () {
+        Route::get('/active', [SemestreController::class, 'active']);
+        Route::get('/', [SemestreController::class, 'index']); // Avec annee_academique_id
+        Route::post('/', [SemestreController::class, 'store']);
+        Route::get('/{semestre}', [SemestreController::class, 'show']);
+        Route::put('/{semestre}', [SemestreController::class, 'update']);
+        Route::patch('/{semestre}', [SemestreController::class, 'update']);
+        Route::delete('/{semestre}', [SemestreController::class, 'destroy']);
+        
+        // Actions spécifiques
+        Route::post('/{semestre}/activate', [SemestreController::class, 'activate']);
     });
 });
 

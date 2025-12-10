@@ -54,4 +54,9 @@ class AnneeAcademique extends Model
     {
         return $query->where('is_active', true);
     }
+
+    public static function deactivateAll()
+    {
+        self::where('is_active', true)->update(['is_active' => false]);
+    }
 }

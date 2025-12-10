@@ -62,4 +62,11 @@ class Semestre extends Model
     {
         return $query->where('is_active', true);
     }
+
+    public static function deactivateAllInAnnee($anneeAcademiqueId)
+    {
+        self::where('annee_academique_id', $anneeAcademiqueId)
+            ->where('is_active', true)
+            ->update(['is_active' => false]);
+    }
 }
