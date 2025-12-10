@@ -40,4 +40,10 @@ class LogActivite extends Model
     {
         return $this->morphTo();
     }
+
+    public function getFormattedDateAttribute()
+    {
+        return $this->created_at->format('Y-m-d H:i');
+    }
+
 }

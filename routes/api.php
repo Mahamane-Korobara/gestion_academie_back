@@ -6,6 +6,7 @@ use App\Http\Controllers\API\Admin\UserController;
 use App\Http\Controllers\API\Admin\FiliereController;
 use App\Http\Controllers\API\Admin\NiveauController;
 use App\Http\Controllers\API\Admin\CoursController;
+use App\Http\Controllers\API\Admin\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,6 +55,8 @@ Route::middleware([
     'check.user.active',
     'check.password.change'
 ])->prefix('admin')->group(function () {
+
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // -------------------------------------------------------------------------
     // Gestion des utilisateurs
