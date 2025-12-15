@@ -9,6 +9,7 @@ use App\Http\Controllers\API\Admin\CoursController;
 use App\Http\Controllers\API\Admin\DashboardController;
 use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
 use App\Http\Controllers\API\Admin\SemestreController;
+use App\Http\Controllers\API\Admin\InscriptionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -149,7 +150,23 @@ Route::middleware([
         // Actions spécifiques
         Route::post('/{semestre}/activate', [SemestreController::class, 'activate']);
     });
-});
+
+     // -------------------------------------------------------------------------
+     // Gestion des Inscriptions
+    // -------------------------------------------------------------------------
+    Route::prefix('inscriptions')->group(function () {
+        Route::get('/', [InscriptionController::class, 'index']);
+        Route::post('/', [InscriptionController::class, 'store']);
+        Route::post('/masse', [InscriptionController::class, 'inscriptionMasse']);
+        Route::get('/etudiant/{etudiantId}', [InscriptionController::class, 'parEtudiant']);
+        Route::get('/cours/{coursId}', [InscriptionController::class, 'parCours']);
+        Route::delete('/{inscription}', [InscriptionController::class, 'destroy']);
+    });
+
+    // Inscription automatique par étudiant
+    Route::post('/etudiants/{etudiant}/inscrire-cours-niveau', [InscriptionController::class, 'inscrireCoursNiveau']);
+
+    });
 
 // ============================================================================
 // ROUTES PROFESSEUR
