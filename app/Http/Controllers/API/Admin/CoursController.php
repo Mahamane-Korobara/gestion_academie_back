@@ -35,7 +35,7 @@ class CoursController extends Controller
             }
 
             if ($semestre) {
-                $query->where('semestre', $semestre);
+                $query->where('semestre_id', $semestre);
             }
 
             $cours = $query->latest()->get();

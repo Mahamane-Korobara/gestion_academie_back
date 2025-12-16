@@ -9,6 +9,7 @@ class TypeEvaluation extends Model
 {
     use HasFactory;
 
+    protected $table = 'types_evaluations';
     protected $fillable = [
         'nom',
         'code',
@@ -16,12 +17,10 @@ class TypeEvaluation extends Model
         'description',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'coefficient_defaut' => 'decimal:2',
-        ];
-    }
+    protected $casts = [
+    'coefficient_defaut' => 'decimal:2',
+    ];
+
 
     public function evaluations()
     {

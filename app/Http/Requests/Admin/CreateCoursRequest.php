@@ -3,8 +3,6 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use App\Enums\Semestre;
 
 class CreateCoursRequest extends FormRequest
 {
@@ -22,7 +20,7 @@ class CreateCoursRequest extends FormRequest
             'coefficient' => ['required', 'numeric', 'min:0.5', 'max:10'],
             'nombre_heures' => ['nullable', 'integer', 'min:1'],
             'niveau_id' => ['required', 'exists:niveaux,id'],
-            'semestre' => ['required', Rule::in(Semestre::values())],
+            'semestre_id' => ['required', 'exists:semestres,id'],
             'annee_academique_id' => ['required', 'exists:annees_academiques,id'],
             'professeur_ids' => ['nullable', 'array'],
             'professeur_ids.*' => ['exists:professeurs,id'],

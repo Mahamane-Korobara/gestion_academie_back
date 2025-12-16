@@ -24,16 +24,13 @@ class Evaluation extends Model
         'statut',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'coefficient' => 'decimal:2',
-            'date_evaluation' => 'date',
-            'heure_debut' => 'datetime:H:i',
-            'heure_fin' => 'datetime:H:i',
-            'statut' => StatutEvaluation::class,
-        ];
-    }
+    protected $casts = [
+    'coefficient' => 'decimal:2',
+    'date_evaluation' => 'date',
+    'heure_debut' => 'datetime:H:i',
+    'heure_fin' => 'datetime:H:i',
+    'statut' => StatutEvaluation::class,
+    ];
 
     public function cours()
     {

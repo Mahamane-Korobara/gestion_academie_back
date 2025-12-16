@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Enums\Semestre;
 
 class Cours extends Model
 {
@@ -17,7 +16,7 @@ class Cours extends Model
         'coefficient',
         'nombre_heures',
         'niveau_id',
-        'semestre',
+        'semestre_id',
         'annee_academique_id',
         'is_active',
     ];
@@ -26,7 +25,6 @@ class Cours extends Model
     {
         return [
             'coefficient' => 'decimal:2',
-            'semestre' => Semestre::class,
             'is_active' => 'boolean',
         ];
     }
@@ -66,6 +64,11 @@ class Cours extends Model
     public function annonces()
     {
         return $this->hasMany(Annonce::class);
+    }
+
+    public function semestre()
+    {
+        return $this->belongsTo(Semestre::class);
     }
 
     // Scope pour les cours actifs

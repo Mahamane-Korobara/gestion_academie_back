@@ -10,6 +10,7 @@ use App\Http\Controllers\API\Admin\DashboardController;
 use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
 use App\Http\Controllers\API\Admin\SemestreController;
 use App\Http\Controllers\API\Admin\InscriptionController;
+use App\Http\Controllers\API\Admin\EvaluationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -151,8 +152,8 @@ Route::middleware([
         Route::post('/{semestre}/activate', [SemestreController::class, 'activate']);
     });
 
-     // -------------------------------------------------------------------------
-     // Gestion des Inscriptions
+    // -------------------------------------------------------------------------
+    // Gestion des Inscriptions
     // -------------------------------------------------------------------------
     Route::prefix('inscriptions')->group(function () {
         Route::get('/', [InscriptionController::class, 'index']);
@@ -166,7 +167,19 @@ Route::middleware([
     // Inscription automatique par étudiant
     Route::post('/etudiants/{etudiant}/inscrire-cours-niveau', [InscriptionController::class, 'inscrireCoursNiveau']);
 
+    // -------------------------------------------------------------------------
+    // Gestion des Évaluations
+    // -------------------------------------------------------------------------
+    Route::prefix('evaluations')->group(function () {
+        Route::get('/', [EvaluationController::class, 'all']); // toutes les éval.
+        Route::get('/cours/{cours}', [EvaluationController::class, 'index']);
+        Route::post('/cours/{cours}', [EvaluationController::class, 'store']);
+        Route::get('/{evaluation}', [EvaluationController::class, 'show']);
+        Route::put('/{evaluation}', [EvaluationController::class, 'update']);
+        Route::delete('/{evaluation}', [EvaluationController::class, 'destroy']);
     });
+
+});
 
 // ============================================================================
 // ROUTES PROFESSEUR

@@ -15,7 +15,11 @@ class CoursResource extends JsonResource
             'description' => $this->description,
             'coefficient' => (float) $this->coefficient,
             'nombre_heures' => $this->nombre_heures,
-            'semestre' => $this->semestre->value,
+            'semestre' => $this->semestre ? [
+                'id' => $this->semestre->id,
+                'numero' => $this->semestre->numero,
+                'annee' => $this->semestre->anneeAcademique->annee ?? null,
+            ] : null,
             'is_active' => $this->is_active,
             'niveau' => [
                 'id' => $this->niveau->id,
