@@ -29,6 +29,9 @@ class User extends Authenticatable
         'is_active' => true,
     ];
 
+    // Eager load la relation role pour éviter les N+1 queries
+    protected $with = ['role'];
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -86,24 +89,50 @@ class User extends Authenticatable
         return $this->hasMany(LogActivite::class);
     }
 
-    // Accesseurs
+    // ============================================================================
+    // VÉRIFICATION DE RÔLE
+    // ============================================================================
+
+    /**
+     * Vérifier si l'utilisateur a un rôle spécifique
+     */
+    public function hasRole(UserRole|string $role): bool
+    {
+        if ($role instanceof UserRole) {
+            return $this->role?->name === $role->value;
+        }
+        return $this->role?->name === $role;
+    }
+
+    /**
+     * Vérifier si l'utilisateur est un administrateur
+     */
     public function isAdmin(): bool
     {
-        return $this->role->name === UserRole::ADMIN->value;
+        return $this->role?->name === UserRole::ADMIN->value;
     }
 
+    /**
+     * Vérifier si l'utilisateur est un professeur
+     */
     public function isProfesseur(): bool
     {
-        return $this->role->name === UserRole::PROFESSEUR->value;
+        return $this->role?->name === UserRole::PROFESSEUR->value;
     }
 
+    /**
+     * Vérifier si l'utilisateur est un étudiant
+     */
     public function isEtudiant(): bool
     {
-        return $this->role->name === UserRole::ETUDIANT->value;
+        return $this->role?->name === UserRole::ETUDIANT->value;
     }
 
+    /**
+     * Obtenir le nom du rôle
+     */
     public function getRoleNameAttribute(): string
     {
-        return $this->role->name;
+        return $this->role?->name ?? 'unknown';
     }
 }

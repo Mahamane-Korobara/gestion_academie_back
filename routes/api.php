@@ -11,6 +11,9 @@ use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
 use App\Http\Controllers\API\Admin\SemestreController;
 use App\Http\Controllers\API\Admin\InscriptionController;
 use App\Http\Controllers\API\Admin\EvaluationController;
+use App\Http\Controllers\API\Admin\NoteAdminController;
+use App\Http\Controllers\API\Admin\AffectationController;
+use App\Http\Controllers\API\Professeur\NoteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -116,6 +119,10 @@ Route::middleware([
         Route::put('/{cours}', [CoursController::class, 'update']);
         Route::patch('/{cours}', [CoursController::class, 'update']);
         Route::delete('/{cours}', [CoursController::class, 'destroy']);
+
+        // Affectation professeurs → cours
+        Route::post('/{cours}/affecter-professeurs', [AffectationController::class, 'affecterProfesseurs']);
+        Route::delete('/{cours}/professeurs/{professeur}', [AffectationController::class, 'retirerProfesseur']);
     });
 
     // -------------------------------------------------------------------------
@@ -179,6 +186,14 @@ Route::middleware([
         Route::delete('/{evaluation}', [EvaluationController::class, 'destroy']);
     });
 
+    // -------------------------------------------------------------------------
+    // Gestion des validations de notes
+    // -------------------------------------------------------------------------
+    Route::prefix('notes')->group(function () {
+        Route::patch('/{note}/valider', [NoteAdminController::class, 'validerNotes']);
+        Route::get('/en-attente', [NoteAdminController::class, 'notesEnAttente']);
+        Route::post('/notes/valider-masse', [NoteAdminController::class, 'validerMasse']);
+    });
 });
 
 // ============================================================================
@@ -190,7 +205,10 @@ Route::middleware([
     'check.user.active',
     'check.password.change'
 ])->prefix('professeur')->group(function () {
-    // Routes professeur
+    // -------------------------------------------------------------------------
+    // Gestion des Saisies de notes
+    // -------------------------------------------------------------------------
+    Route::post('/evaluations/{evaluation}/notes', [NoteController::class, 'store']);
 });
 
 // ============================================================================
