@@ -172,48 +172,53 @@ Le serveur sera accessible sur : `http://localhost:8000`
 ```
 gestion-academique/
 ├── app/
-│   ├── Enums/                      # Énumérations
-│   │   ├── UserRole.php
-│   │   ├── StudentStatus.php
-│   │   ├── Sexe.php
-│   │   ├── Semestre.php
-│   │   ├── JourSemaine.php
-│   │   ├── TypeSeance.php
-│   │   ├── StatutNote.php
-│   │   ├── StatutEvaluation.php
-│   │   ├── DecisionBulletin.php
-│   │   ├── TypeAnnonce.php
-│   │   ├── PrioriteAnnonce.php
-│   │   ├── TypeDocument.php
-│   │   ├── StatutDocument.php
-│   │   └── ActionLog.php
+│   ├── Enums/                      # 14 Énumérations
+│   │   ├── UserRole.php (✅)
+│   │   ├── StudentStatus.php (✅)
+│   │   ├── Sexe.php (✅)
+│   │   ├── Semestre.php (✅)
+│   │   ├── JourSemaine.php (✅)
+│   │   ├── TypeSeance.php (✅)
+│   │   ├── StatutNote.php (✅)
+│   │   ├── StatutEvaluation.php (✅)
+│   │   ├── DecisionBulletin.php (✅)
+│   │   ├── TypeAnnonce.php (✅)
+│   │   ├── PrioriteAnnonce.php (✅)
+│   │   ├── TypeDocument.php (✅)
+│   │   ├── StatutDocument.php (✅)
+│   │   └── ActionLog.php (✅)
 │   │
 │   ├── Http/
 │   │   ├── Controllers/
 │   │   │   └── API/
 │   │   │       ├── Auth/
 │   │   │       │   └── AuthController.php (✅ Implémenté)
-│   │   │       └── Admin/
-│   │   │           ├── UserController.php (✅ Implémenté - CRUD complet)
-│   │   │           ├── FiliereController.php (✅ Implémenté - CRUD complet)
-│   │   │           ├── NiveauController.php (✅ Implémenté - CRUD + niveaux auto)
-│   │   │           ├── CoursController.php (✅ Implémenté - CRUD complet)
-│   │   │           ├── AnneeAcademiqueController.php (✅ Implémenté - CRUD + gestion dates)
-│   │   │           ├── SemestreController.php (✅ Implémenté - CRUD + activation)
-│   │   │           ├── InscriptionController.php (✅ Implémenté - Manuel et masse)
-│   │   │           └── DashboardController.php (✅ Implémenté - Stats dashboard)
+│   │   │       ├── Admin/ (9 controllers)
+│   │   │       │   ├── UserController.php (✅ CRUD complet)
+│   │   │       │   ├── FiliereController.php (✅ CRUD complet)
+│   │   │       │   ├── NiveauController.php (✅ CRUD + niveaux auto)
+│   │   │       │   ├── CoursController.php (✅ CRUD complet)
+│   │   │       │   ├── AnneeAcademiqueController.php (✅ CRUD + gestion dates)
+│   │   │       │   ├── SemestreController.php (✅ CRUD + activation)
+│   │   │       │   ├── InscriptionController.php (✅ Manuel et masse)
+│   │   │       │   ├── EvaluationController.php (✅ CRUD évaluations) - NOUVEAU ✨
+│   │   │       │   ├── AffectationController.php (✅ Affecter profs) - NOUVEAU ✨
+│   │   │       │   ├── NoteAdminController.php (✅ Validation notes) - NOUVEAU ✨
+│   │   │       │   └── DashboardController.php (✅ Stats dashboard)
+│   │   │       └── Professeur/ (1 controller)
+│   │   │           └── NoteController.php (✅ Saisie notes) - NOUVEAU ✨
 │   │   │
 │   │   ├── Middleware/
 │   │   │   ├── CheckUserActive.php (✅ Implémenté)
 │   │   │   ├── CheckPasswordChange.php (✅ Implémenté)
 │   │   │   └── CheckRole.php (✅ Implémenté)
 │   │   │
-│   │   ├── Requests/ (Validation par FormRequest)
-│   │   │   ├── Auth/
-│   │   │   │   ├── LoginRequest.php (✅ Implémenté)
-│   │   │   │   ├── ChangePasswordRequest.php (✅ Implémenté)
-│   │   │   │   └── UpdateProfileRequest.php (✅ Implémenté)
-│   │   │   └── Admin/ (16 FormRequests implémentés)
+│   │   ├── Requests/ (Validation par FormRequest - 18 total)
+│   │   │   ├── Auth/ (3)
+│   │   │   │   ├── LoginRequest.php (✅)
+│   │   │   │   ├── ChangePasswordRequest.php (✅)
+│   │   │   │   └── UpdateProfileRequest.php (✅)
+│   │   │   └── Admin/ (15)
 │   │   │       ├── CreateUserRequest.php (✅)
 │   │   │       ├── CreateFiliereRequest.php (✅)
 │   │   │       ├── UpdateFiliereRequest.php (✅)
@@ -226,45 +231,52 @@ gestion-academique/
 │   │   │       ├── UpdateSemestreRequest.php (✅)
 │   │   │       ├── CreateInscriptionRequest.php (✅)
 │   │   │       ├── InscriptionMasseRequest.php (✅)
-│   │   │       └── InscriptionNiveauRequest.php (✅)
+│   │   │       ├── InscriptionNiveauRequest.php (✅)
+│   │   │       ├── CreateEvaluationRequest.php (✅) - NOUVEAU ✨
+│   │   │       └── UpdateEvaluationRequest.php (✅) - NOUVEAU ✨
 │   │   │
-│   │   └── Resources/ (8 Ressources API implémentées)
-│   │       └── Admin/
-│   │           ├── UserResource.php (✅)
-│   │           ├── FiliereResource.php (✅)
-│   │           ├── FiliereStatResource.php (✅ Stats)
-│   │           ├── NiveauResource.php (✅)
-│   │           ├── CoursResource.php (✅)
-│   │           ├── AnneeAcademiqueResource.php (✅)
-│   │           ├── SemestreResource.php (✅)
-│   │           └── InscriptionResource.php (✅)
-|   |           
+│   │   ├── Resources/ (10 Ressources API)
+│   │   │   └── Admin/
+│   │   │       ├── UserResource.php (✅)
+│   │   │       ├── FiliereResource.php (✅)
+│   │   │       ├── FiliereStatResource.php (✅ Stats)
+│   │   │       ├── NiveauResource.php (✅)
+│   │   │       ├── CoursResource.php (✅)
+│   │   │       ├── AnneeAcademiqueResource.php (✅)
+│   │   │       ├── SemestreResource.php (✅)
+│   │   │       ├── InscriptionResource.php (✅)
+│   │   │       ├── EvaluationResource.php (✅) - NOUVEAU ✨
+│   │   │       └── NoteResource.php (✅) - NOUVEAU ✨
+│   │   │
+│   │   └── Policies/ (2 Policies - NOUVEAU ✨)
+│   │       ├── NotePolicy.php (✅ Authorization notes)
+│   │       └── EvaluationPolicy.php (✅ Authorization évaluations)
 │   │
-│   ├── Models/                     # Modèles Eloquent
-│   │   ├── User.php
-│   │   ├── Role.php
-│   │   ├── Filiere.php
-│   │   ├── Niveau.php
-│   │   ├── AnneeAcademique.php
-│   │   ├── Semestre.php
-│   │   ├── Etudiant.php
-│   │   ├── Professeur.php
-│   │   ├── Cours.php
-│   │   ├── Inscription.php
-│   │   ├── Salle.php
-│   │   ├── EmploiDuTemps.php
-│   │   ├── TypeEvaluation.php
-│   │   ├── Evaluation.php
-│   │   ├── Note.php
-│   │   ├── Bulletin.php
-│   │   ├── Annonce.php
-│   │   ├── Notification.php
-│   │   ├── Message.php
-│   │   ├── Document.php
-│   │   └── LogActivite.php
+│   ├── Models/                     # 20 Modèles Eloquent
+│   │   ├── User.php (✅ avec eager loading role)
+│   │   ├── Role.php (✅)
+│   │   ├── Filiere.php (✅)
+│   │   ├── Niveau.php (✅)
+│   │   ├── AnneeAcademique.php (✅)
+│   │   ├── Semestre.php (✅)
+│   │   ├── Etudiant.php (✅)
+│   │   ├── Professeur.php (✅)
+│   │   ├── Cours.php (✅)
+│   │   ├── Inscription.php (✅)
+│   │   ├── Salle.php (✅)
+│   │   ├── EmploiDuTemps.php (✅)
+│   │   ├── TypeEvaluation.php (✅)
+│   │   ├── Evaluation.php (✅)
+│   │   ├── Note.php (✅) - NOUVEAU ✨
+│   │   ├── Bulletin.php (✅)
+│   │   ├── Annonce.php (✅)
+│   │   ├── Notification.php (✅)
+│   │   ├── Message.php (✅)
+│   │   ├── Document.php (✅)
+│   │   └── LogActivite.php (✅)
 │   │
 │   └── Services/                   # Services métier
-│       └── CacheService.php
+│       └── CacheService.php (✅ Cache avec TTL adaptatif)
 │
 ├── database/
 │   ├── migrations/                 # 22 migrations
@@ -445,6 +457,42 @@ Les nouveaux utilisateurs (étudiants/professeurs) doivent changer leur mot de p
 - `InscriptionMasseRequest` - Inscriptions en masse
 - `InscriptionNiveauRequest` - Auto-inscription niveau
 
+**Admin - Évaluations (2):** - NOUVEAU ✨
+- `CreateEvaluationRequest` - Cours, Type, Dates, Salle
+- `UpdateEvaluationRequest` - Modification évaluation
+
+### Authorization Policies (Contrôle d'accès)
+
+**NotePolicy** - NOUVEAU ✨
+```php
+- saisirNotes($user, $evaluation) 
+  // Un professeur peut saisir notes seulement s'il enseigne le cours
+  
+- voir($user, $evaluation)
+  // Un professeur peut voir notes de ses cours
+  
+- valider($user, $evaluation) 
+  // Un admin peut valider n'importe quelle note
+  
+- supprimer($user, $evaluation)
+  // Un admin peut supprimer notes
+  
+- voirNotes($user, $evaluation)
+  // Un étudiant peut voir ses notes
+```
+
+**EvaluationPolicy** - NOUVEAU ✨
+```php
+- creer($user, $evaluation)
+  // Un admin peut créer évaluations
+  
+- modifier($user, $evaluation)
+  // Un admin peut modifier évaluations
+  
+- supprimer($user, $evaluation)
+  // Un admin peut supprimer évaluations
+```
+
 ### API Resources (Transformation)
 
 **User Resource**
@@ -509,6 +557,27 @@ Les nouveaux utilisateurs (étudiants/professeurs) doivent changer leur mot de p
 - cours (relation)
 - semestre (relation)
 - date_inscription
+```
+
+**Evaluation Resource** - NOUVEAU ✨
+```php
+- id, code, nom, description
+- cours (relation)
+- typeEvaluation (relation)
+- semestre (relation)
+- salle (relation)
+- date_evaluation, heure_debut, heure_fin
+- notes_count, statut
+```
+
+**Note Resource** - NOUVEAU ✨
+```php
+- id, valeur, statut (brouillon, soumise, validee)
+- etudiant (relation)
+- evaluation (relation)
+- saisiPar (relation - professeur)
+- validePar (relation - admin)
+- date_saisie, date_validation
 ```
 
 ---
@@ -612,11 +681,42 @@ Base URL : `http://localhost:8000/api`
 | DELETE | `/admin/inscriptions/{id}` | Supprimer inscription |
 | POST | `/admin/etudiants/{id}/inscrire-cours-niveau` | Auto-inscription niveau |
 
+### Admin - Évaluations - NOUVEAU ✨
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/admin/evaluations` | Toutes les évaluations |
+| GET | `/admin/evaluations/cours/{id}` | Évaluations d'un cours |
+| POST | `/admin/evaluations/cours/{id}` | Créer évaluation |
+| GET | `/admin/evaluations/{id}` | Détails évaluation |
+| PUT | `/admin/evaluations/{id}` | Modifier évaluation |
+| DELETE | `/admin/evaluations/{id}` | Supprimer évaluation |
+
+### Admin - Affectation Professeurs - NOUVEAU ✨
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/admin/cours/{id}/affecter-professeurs` | Affecter profs au cours |
+
+### Admin - Validation Notes - NOUVEAU ✨
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| PATCH | `/admin/notes/{id}/valider` | Valider une note |
+| GET | `/admin/notes/en-attente` | Lister notes en attente |
+| POST | `/admin/notes/valider-masse` | Valider notes en masse |
+
 ### Admin - Dashboard
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
 | GET | `/admin/dashboard` | Statistiques dashboard |
+
+### Professeur - Saisie Notes - NOUVEAU ✨
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/professeur/evaluations/{id}/notes` | Saisir notes d'évaluation |
 
 ---
 
@@ -942,11 +1042,12 @@ php artisan test --coverage
 
 | Composant | Status | Détails |
 |-----------|--------|---------|
-| **Controllers** | ✅ 9 implémentés | Auth (1), Admin (8) |
-| **Resources** | ✅ 8 implémentées | Toutes les entités principales |
-| **Requests** | ✅ 16 implémentées | Validation complète |
+| **Controllers** | ✅ 12 implémentés | Auth (1), Admin (9), Professeur (1) + NoteController |
+| **Resources** | ✅ 10 implémentées | Toutes les entités + Evaluation + Note |
+| **Requests** | ✅ 18 implémentées | Validation complète |
+| **Policies** | ✅ 2 implémentées | NotePolicy, EvaluationPolicy |
 | **Middleware** | ✅ 3 implémentés | Auth, Rôles, Sécurité |
-| **Routes API** | ✅ 60+ endpoints | Tous les CRUD + actions spéciales |
+| **Routes API** | ✅ 70+ endpoints | Tous les CRUD + actions spéciales |
 | **Models** | ✅ 20 modèles | Relations complètes |
 | **Enums** | ✅ 14 énumérations | Types et statuts |
 | **Migrations** | ✅ 22 tables | Base complète |
@@ -1035,6 +1136,38 @@ php artisan test --coverage
 - ✅ Dernière activité
 - ✅ Données formatées avec Resources
 
+**9. AffectationController** - NOUVEAU ✨
+- ✅ Affecter professeurs aux cours
+- ✅ Gestion par année académique
+- ✅ Remplacer affectations existantes
+- ✅ Cache invalidation intelligente
+- ✅ Validation des données
+
+**10. EvaluationController** - NOUVEAU ✨
+- ✅ Lister évaluations par cours
+- ✅ Créer évaluation
+- ✅ Afficher détails évaluation
+- ✅ Modifier évaluation
+- ✅ Supprimer évaluation
+- ✅ Cache avec TTL adaptatif
+- ✅ Eager loading relations
+
+**11. NoteAdminController** - NOUVEAU ✨
+- ✅ Valider notes individuelles
+- ✅ Lister notes en attente (brouillon/soumise)
+- ✅ Validation en masse (jusqu'à 100 notes)
+- ✅ Filtrage par cours/étudiant
+- ✅ Logs d'activité d'audit
+- ✅ Transactions DB pour intégrité
+- ✅ Authorization via Policy
+
+**12. NoteController (Professeur)** - NOUVEAU ✨
+- ✅ Saisir notes pour une évaluation
+- ✅ Authorization via NotePolicy
+- ✅ Validation des données
+- ✅ Contrôle d'accès par cours
+- ✅ Vérification professeur enseigne le cours
+
 ---
 
 ## 📌 Fonctionnalités implémentées
@@ -1098,6 +1231,39 @@ php artisan test --coverage
 - [x] Validation intelligente
 - [x] Cache invalidation
 
+### ✅ Gestion Admin - Évaluations - NOUVEAU ✨
+- [x] CRUD Évaluations
+- [x] Lier à cours et type d'évaluation
+- [x] Gestion dates/salles
+- [x] Filtrage par cours
+- [x] Pagination avec cache
+- [x] Eager loading optimisé
+
+### ✅ Gestion Admin - Affectation Professeurs - NOUVEAU ✨
+- [x] Affecter professeurs aux cours
+- [x] Gestion par année académique
+- [x] Remplacer affectations existantes
+- [x] Validation des données
+- [x] Cache invalidation intelligente
+- [x] Transactions DB
+
+### ✅ Gestion Admin - Validation Notes - NOUVEAU ✨
+- [x] Valider notes individuelles
+- [x] Lister notes en attente
+- [x] Validation en masse (100 max)
+- [x] Filtrage par cours/étudiant
+- [x] Logs d'audit complets
+- [x] Authorization via Policy
+- [x] Transactions pour intégrité
+
+### ✅ Gestion Professeur - Saisie Notes - NOUVEAU ✨
+- [x] Saisir notes d'évaluation
+- [x] Authorization via NotePolicy
+- [x] Validation données
+- [x] Vérification accès cours
+- [x] Logs d'activité
+- [x] Transitions d'états (brouillon → soumise)
+
 ### ✅ Dashboard Admin
 - [x] Résumé statistiques (users, cours, filieres)
 - [x] Étudiants par filière
@@ -1138,10 +1304,15 @@ php artisan test --coverage
 
 ### 🚧 À développer
 
-- [ ] Controllers Professeur (saisie notes, emploi du temps)
+- [x] ~~Controllers Professeur (saisie notes)~~ FAIT ✨
+- [x] ~~Gestion Évaluations~~ FAIT ✨
+- [x] ~~Gestion Notes (saisie + validation)~~ FAIT ✨
+- [x] ~~Affectation Professeurs aux cours~~ FAIT ✨
+- [x] ~~Policies (Authorization)~~ FAIT ✨
+
+**Reste à faire (v0.3.0):**
 - [ ] Controllers Étudiant (consultation notes, bulletins)
-- [ ] Gestion emplois du temps complets
-- [ ] Saisie et validation notes
+- [ ] Emplois du temps complets
 - [ ] Génération bulletins (PDF)
 - [ ] Calcul moyennes automatiques
 - [ ] Système d'annonces
@@ -1150,6 +1321,7 @@ php artisan test --coverage
 - [ ] Export PDF/Excel
 - [ ] Tests unitaires
 - [ ] Interface frontend Next.js
+- [ ] Swagger/OpenAPI documentation
 
 ---
 
@@ -1359,6 +1531,30 @@ LOG_LEVEL=error
 
 ## 🎉 Changelog
 
+### Version 0.2.0 - NOUVEAU ✨
+
+**Ajouté :**
+- 4 nouveaux Controllers (Evaluation, Affectation, NoteAdmin, NoteController)
+- 2 Policies (NotePolicy, EvaluationPolicy)
+- 2 nouvelles Resources (EvaluationResource, NoteResource)
+- 2 FormRequest pour Évaluations
+- Gestion complète des Évaluations (CRUD)
+- Affectation des professeurs aux cours
+- Saisie des notes par professeurs
+- Validation des notes par admin (simple + masse)
+- Authorization via Policies
+- Routes Professeur implémentées
+- 70+ endpoints API
+- Logs d'audit complets
+- Transactions DB pour intégrité données
+
+**Amélioré :**
+- Model User avec eager loading de relation role
+- Méthode `hasRole()` générique dans User
+- Gestion nullabilité des relations
+- Performance optimisée (N+1 queries)
+- Documentation mise à jour
+
 ### Version 0.1.1 (Améliorations)
 
 **Ajouté :**
@@ -1379,7 +1575,7 @@ LOG_LEVEL=error
 - Architecture sécurité documentée
 - Patterns d'implémentation expliqués
 
-### Version 0.1.0 (Actuelle)
+### Version 0.1.0 (Base)
 
 **Ajouté :**
 - Système d'authentification complet
@@ -1392,10 +1588,8 @@ LOG_LEVEL=error
 - 20 Models Eloquent
 - API RESTful
 
-**À venir (v0.2.0) :**
-- Controllers Professeur (saisie notes, emploi du temps)
+**À venir (v0.3.0) :**
 - Controllers Étudiant (consultation notes, bulletins)
-- Gestion des notes et évaluations
 - Génération des bulletins (PDF)
 - Calcul moyennes automatiques
 - Emplois du temps complets
@@ -1404,9 +1598,10 @@ LOG_LEVEL=error
 - Messagerie interne
 - Export PDF/Excel
 - Tests unitaires
+- Swagger/OpenAPI documentation
 
 ---
 
-**Dernière mise à jour :** 15 décembre 2025  
-**Version :** 0.1.1  
+**Dernière mise à jour :** 17 décembre 2025  
+**Version :** 0.2.0 - Évaluations & Notes  
 **Statut :** En développement actif 🚧
