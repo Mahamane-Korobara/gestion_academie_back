@@ -13,6 +13,7 @@ use App\Http\Controllers\API\Admin\InscriptionController;
 use App\Http\Controllers\API\Admin\EvaluationController;
 use App\Http\Controllers\API\Admin\NoteAdminController;
 use App\Http\Controllers\API\Admin\AffectationController;
+use App\Http\Controllers\API\Admin\BulletinController;
 use App\Http\Controllers\API\Professeur\NoteController;
 
 /*
@@ -193,6 +194,22 @@ Route::middleware([
         Route::patch('/{note}/valider', [NoteAdminController::class, 'validerNotes']);
         Route::get('/en-attente', [NoteAdminController::class, 'notesEnAttente']);
         Route::post('/notes/valider-masse', [NoteAdminController::class, 'validerMasse']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des Bulletins
+    // -------------------------------------------------------------------------
+    Route::prefix('bulletins')->group(function () {
+        // Bulletins semestriels
+        Route::post('/etudiants/{etudiant}/semestres/{semestre}/generer', [BulletinController::class, 'genererSemestre']);
+        Route::get('/etudiants/{etudiant}/semestres/{semestre}', [BulletinController::class, 'show']);
+
+        // Bulletins annuels
+        Route::post('/etudiants/{etudiant}/annees/{anneeAcademiqueId}/generer', [BulletinController::class, 'genererAnnuel']);
+        Route::get('/etudiants/{etudiant}/annees/{anneeAcademiqueId}', [BulletinController::class, 'show']);
+
+        // Liste globale
+        Route::get('/', [BulletinController::class, 'index']);
     });
 });
 
