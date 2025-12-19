@@ -6,20 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\Evaluation;
 use App\Models\Inscription;
 use App\Models\Note;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class NoteController extends Controller
 {
-
     use AuthorizesRequests;
+
     /**
      * Saisir les notes pour une évaluation
      */
     public function store(Request $request, Evaluation $evaluation)
     {
-        // Vérification de la policy
+        // Vérification de la policy (le prof doit être celui du cours)
         $this->authorize('saisirNotes', $evaluation);
 
         $request->validate([
@@ -32,15 +34,13 @@ class NoteController extends Controller
 
         $userId = $request->user()->id;
 
-        // Récupérer en une seule requête tous les étudiants inscrits au cours
+        // Récupérer les étudiants inscrits au cours pour valider la liste
         $inscrits = Inscription::where('cours_id', $evaluation->cours_id)
                                ->pluck('etudiant_id')
                                ->toArray();
 
         $saisies = [];
-
         foreach ($request->notes as $item) {
-            // Ignorer les étudiants non inscrits
             if (!in_array($item['etudiant_id'], $inscrits)) {
                 continue;
             }
@@ -51,7 +51,7 @@ class NoteController extends Controller
                 'note'           => $item['note'] ?? null,
                 'is_absent'      => $item['is_absent'] ?? false,
                 'commentaire'    => $item['commentaire'] ?? null,
-                'statut'         => 'brouillon',
+                'statut'         => 'brouillon', // Toujours en brouillon à la saisie prof
                 'saisi_par'      => $userId,
                 'date_saisie'    => now(),
                 'created_at'     => now(),
@@ -60,18 +60,30 @@ class NoteController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($evaluation, $saisies) {
-                // Supprimer les notes existantes pour cette évaluation
+            DB::transaction(function () use ($evaluation, $saisies, $userId) {
+                // Sauvegarder l'état précédent pour le log (si nécessaire)
+                $oldNotesCount = Note::where('evaluation_id', $evaluation->id)->count();
+
+                // Supprimer les notes existantes (remplacement complet du brouillon)
                 Note::where('evaluation_id', $evaluation->id)->delete();
 
-                // Insérer les nouvelles en batch
+                // Insérer les nouvelles notes en batch
                 if (!empty($saisies)) {
                     Note::insert($saisies);
                 }
+
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::UPDATE,
+                    "Saisie/Mise à jour des notes pour l'évaluation : {$evaluation->titre} ({$evaluation->cours->nom})",
+                    $evaluation,
+                    ['nb_notes_precedentes' => $oldNotesCount],
+                    ['nb_notes_saisies' => count($saisies)]
+                );
             });
 
             return response()->json([
-                'message' => 'Notes enregistrées en brouillon',
+                'message' => 'Notes enregistrées en brouillon avec succès',
                 'count' => count($saisies),
             ], 201);
 

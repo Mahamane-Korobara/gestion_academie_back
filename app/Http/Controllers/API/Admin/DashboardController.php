@@ -18,7 +18,8 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $data = Cache::remember(CacheService::KEYS['stats_dashboard'], CacheService::SHORT_TTL, function () {
+        // 1. On récupère les statistiques (mises en cache car calculs lourds)
+        $stats = Cache::remember(CacheService::KEYS['stats_dashboard'], CacheService::SHORT_TTL, function () {
             
             // Résumé numérique
             $resume = [
@@ -41,31 +42,40 @@ class DashboardController extends Controller
                 ->groupBy(fn($s) => $s)
                 ->map->count();
 
-            // Activités récentes 10 dernières
-            $recentActivities = LogActivite::select('id', 'action', 'description', 'user_id', 'created_at')
-                ->with('user:id,name')
-                ->latest()
-                ->limit(10)
-                ->get()
-                ->map(fn($log) => [
-                    'id'          => $log->id,
-                    'action'      => $log->action,
-                    'description' => $log->description,
-                    'user_name'   => $log->user->name ?? 'Utilisateur supprimé',
-                    'created_at'  => $log->formatted_date,
-                ]);
-
             return [
                 'resume' => $resume,
                 'charts' => [
                     'etudiants_par_filiere'     => $etudiantsParFiliere,
                     'etudiants_par_sexe'        => $etudiantsParSexe,
                     'taux_reussite_par_filiere' => [], // à implémenter plus tard
-                ],
-                'recent_activities' => $recentActivities,
+                ]
             ];
         });
 
-        return response()->json($data);
+        // 2. On récupère les activités récentes SANS cache 
+        // pour que l'admin voie ses actions immédiatement
+        $recentActivities = LogActivite::select('id', 'action', 'description', 'user_id', 'created_at')
+            ->with(['user' => function($query) {
+                $query->select('id', 'name', 'role_id')->with('role');
+            }])
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(fn($log) => [
+                'id'          => $log->id,
+                'action'      => $log->action,
+                'description' => $log->description,
+                'user_name'   => $log->user->name ?? 'Système',
+                // Utilisation de tes méthodes de modèle User si nécessaire
+                'user_role'   => $log->user ? $log->user->role->name : null,
+                'created_at'  => $log->created_at->diffForHumans(), // Plus lisible pour un dashboard
+            ]);
+
+        // 3. Fusion des données
+        return response()->json([
+            'resume'            => $stats['resume'],
+            'charts'            => $stats['charts'],
+            'recent_activities' => $recentActivities,
+        ]);
     }
 }

@@ -8,7 +8,11 @@ use App\Http\Requests\Admin\UpdateFiliereRequest;
 use App\Http\Resources\Admin\FiliereResource;
 use App\Models\Filiere;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class FiliereController extends Controller
 {
@@ -45,15 +49,33 @@ class FiliereController extends Controller
      */
     public function store(CreateFiliereRequest $request)
     {
-        $filiere = Filiere::create($request->validated());
+        try {
+            $filiere = DB::transaction(function () use ($request) {
+                $newFiliere = Filiere::create($request->validated());
 
-        // Invalider le cache
-        CacheService::forgetFilieres();
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::CREATE,
+                    "Création de la filière : {$newFiliere->nom} ({$newFiliere->code})",
+                    $newFiliere,
+                    null,
+                    $newFiliere->toArray()
+                );
 
-        return response()->json([
-            'message' => 'Filière créée avec succès',
-            'filiere' => new FiliereResource($filiere),
-        ], 201);
+                return $newFiliere;
+            });
+
+            // Invalider les caches (Filieres + Dashboard car le nombre change)
+            CacheService::forgetFilieres();
+
+            return response()->json([
+                'message' => 'Filière créée avec succès',
+                'filiere' => new FiliereResource($filiere),
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -61,15 +83,34 @@ class FiliereController extends Controller
      */
     public function update(UpdateFiliereRequest $request, Filiere $filiere)
     {
-        $filiere->update($request->validated());
+        try {
+            $oldValues = $filiere->toArray();
 
-        // Invalider les caches
-        CacheService::forgetFilieres();
+            DB::transaction(function () use ($request, $filiere, $oldValues) {
+                $filiere->update($request->validated());
 
-        return response()->json([
-            'message' => 'Filière mise à jour avec succès',
-            'filiere' => new FiliereResource($filiere->fresh()),
-        ]);
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::UPDATE,
+                    "Modification de la filière : {$filiere->nom}",
+                    $filiere,
+                    $oldValues,
+                    $filiere->fresh()->toArray()
+                );
+            });
+
+            // Invalider les caches (Clé spécifique et liste globale)
+            CacheService::forgetFilieres();
+            Cache::forget(CacheService::key('filiere', $filiere->id));
+
+            return response()->json([
+                'message' => 'Filière mise à jour avec succès',
+                'filiere' => new FiliereResource($filiere->fresh()),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -77,20 +118,40 @@ class FiliereController extends Controller
      */
     public function destroy(Filiere $filiere)
     {
-        // Vérifier s'il y a des étudiants
+        // Vérification métier avant action
         if ($filiere->etudiants()->count() > 0) {
             return response()->json([
                 'message' => 'Impossible de supprimer une filière avec des étudiants inscrits',
             ], 422);
         }
 
-        $filiere->delete();
+        try {
+            $filiereId = $filiere->id;
+            $filiereNom = $filiere->nom;
+            $oldData = $filiere->toArray();
 
-        // Invalider les caches
-        CacheService::forgetFilieres();
+            DB::transaction(function () use ($filiere, $oldData, $filiereNom) {
+                // --- LOG SERVICE --- (Avant suppression)
+                LogService::write(
+                    ActionLog::DELETE,
+                    "Suppression de la filière : {$filiereNom}",
+                    $filiere,
+                    $oldData
+                );
 
-        return response()->json([
-            'message' => 'Filière supprimée avec succès',
-        ]);
+                $filiere->delete();
+            });
+
+            // Invalider les caches
+            CacheService::forgetFilieres();
+            Cache::forget(CacheService::key('filiere', $filiereId));
+
+            return response()->json([
+                'message' => 'Filière supprimée avec succès',
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 }

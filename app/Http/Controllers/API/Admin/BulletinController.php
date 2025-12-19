@@ -9,6 +9,8 @@ use App\Models\Etudiant;
 use App\Models\Semestre;
 use App\Services\CalculAcademique;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -38,7 +40,16 @@ class BulletinController extends Controller
             return response()->json(['message' => 'Aucune donnée à générer'], 404);
         }
 
-        // Invalidation du cache pour cet étudiant car les données vont changer
+        // --- LOG SERVICE ---
+        LogService::write(
+            ActionLog::CREATE,
+            "Génération du bulletin semestriel ({$semestre->value}) pour l'étudiant : {$etudiant->user->name}",
+            $bulletin,
+            null,
+            ['moyenne' => $bulletin->moyenne, 'decision' => $bulletin->decision]
+        );
+
+        // Invalidation du cache pour cet étudiant
         CacheService::forgetBulletins($etudiant->id);
 
         return new BulletinResource($bulletin);
@@ -61,7 +72,16 @@ class BulletinController extends Controller
             return response()->json(['message' => 'Aucune donnée à générer'], 404);
         }
 
-        // Invalidation du cache également pour le bulletin annuel
+        // --- LOG SERVICE ---
+        LogService::write(
+            ActionLog::CREATE,
+            "Génération du bulletin annuel pour l'étudiant : {$etudiant->user->name}",
+            $bulletin,
+            null,
+            ['moyenne_annuelle' => $bulletin->moyenne, 'decision' => $bulletin->decision]
+        );
+
+        // Invalidation du cache
         CacheService::forgetBulletins($etudiant->id);
 
         return new BulletinResource($bulletin);
@@ -80,7 +100,7 @@ class BulletinController extends Controller
         // Récupérer le modèle brut depuis le cache
         $bulletin = Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($etudiant, $semestreId) {
             $query = Bulletin::where('etudiant_id', $etudiant->id)
-                ->with(['etudiant.user', 'semestre.anneeAcademique']); // Eager loading indispensable pour le cache
+                ->with(['etudiant.user', 'semestre.anneeAcademique']);
 
             if ($semestreId) {
                 $query->where('semestre_id', $semestreId);
@@ -95,7 +115,6 @@ class BulletinController extends Controller
             return response()->json(['message' => 'Bulletin non trouvé'], 404);
         }
 
-        // Retourner la Resource APRES le cache
         return new BulletinResource($bulletin);
     }
 
@@ -106,13 +125,11 @@ class BulletinController extends Controller
     {
         $this->authorize('manage', Bulletin::class);
 
-        // Créer une clé de cache basée sur TOUS les paramètres de filtrage
         $params = $request->all();
-        ksort($params); // Trier pour que ?page=1&size=20 soit identique à ?size=20&page=1
+        ksort($params);
         $filterHash = md5(json_encode($params));
         $cacheKey = "bulletins:list:filters:{$filterHash}";
 
-        // Mettre en cache la collection paginée
         $bulletins = Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request) {
             $query = Bulletin::with(['etudiant.user', 'semestre.anneeAcademique']);
 

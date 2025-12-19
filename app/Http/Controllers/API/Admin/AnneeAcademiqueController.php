@@ -10,6 +10,9 @@ use App\Http\Resources\Admin\SemestreResource;
 use App\Models\AnneeAcademique;
 use App\Models\Semestre;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +23,7 @@ class AnneeAcademiqueController extends Controller
      */
     public function index()
     {
-        $cacheKey = 'annees_academiques:all'; // clé
+        $cacheKey = 'annees_academiques:all';
 
         return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () {
             $annees = AnneeAcademique::withCount(['semestres', 'etudiants', 'cours'])
@@ -36,7 +39,7 @@ class AnneeAcademiqueController extends Controller
      */
     public function active()
     {
-        $cacheKey = 'annee_academique:active'; // Clé dédiée
+        $cacheKey = 'annee_academique:active';
 
         return Cache::remember($cacheKey, CacheService::LONG_TTL, function () {
             $annee = AnneeAcademique::active()
@@ -80,12 +83,20 @@ class AnneeAcademiqueController extends Controller
 
             $annee = AnneeAcademique::create($request->validated());
 
+            LogService::write(
+                ActionLog::CREATE,
+                "Création de l'année académique : {$annee->nom}",
+                $annee,
+                null,
+                $annee->toArray()
+            );
+
             DB::commit();
 
-            // Invalidation précise
             CacheService::forget([
                 'annees_academiques:all',
                 'annee_academique:active',
+                CacheService::KEYS['stats_dashboard']
             ]);
 
             return response()->json([
@@ -96,7 +107,7 @@ class AnneeAcademiqueController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Erreur lors de la création de l\'année académique',
+                'message' => 'Erreur lors de la création',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -110,11 +121,21 @@ class AnneeAcademiqueController extends Controller
         try {
             DB::beginTransaction();
 
+            $oldValues = $anneeAcademique->toArray();
+
             if ($request->has('is_active') && $request->is_active) {
                 AnneeAcademique::deactivateAll();
             }
 
             $anneeAcademique->update($request->validated());
+
+            LogService::write(
+                ActionLog::UPDATE,
+                "Mise à jour de l'année académique : {$anneeAcademique->nom}",
+                $anneeAcademique,
+                $oldValues,
+                $anneeAcademique->fresh()->toArray()
+            );
 
             DB::commit();
 
@@ -154,6 +175,13 @@ class AnneeAcademiqueController extends Controller
             AnneeAcademique::deactivateAll();
             $anneeAcademique->update(['is_active' => true]);
 
+            // --- LOG SERVICE ---
+            LogService::write(
+                ActionLog::VALIDATE,
+                "Activation manuelle de l'année académique : {$anneeAcademique->nom}",
+                $anneeAcademique
+            );
+
             DB::commit();
 
             CacheService::forget([
@@ -183,15 +211,17 @@ class AnneeAcademiqueController extends Controller
         try {
             DB::beginTransaction();
 
-            // Ajoute vérifications robustes (bulletins, notes, inscriptions)
-            // if ($anneeAcademique->bulletins()->whereNull('valide_a')->exists()) {
-            //     throw new \Exception('Des bulletins ne sont pas validés.');
-            // }
-
             $anneeAcademique->update([
                 'is_cloturee' => true,
                 'is_active' => false,
             ]);
+
+            // --- LOG SERVICE ---
+            LogService::write(
+                ActionLog::VALIDATE,
+                "Clôture officielle de l'année académique : {$anneeAcademique->nom}",
+                $anneeAcademique
+            );
 
             DB::commit();
 
@@ -231,19 +261,17 @@ class AnneeAcademiqueController extends Controller
             $dateDebut = $anneeAcademique->date_debut;
             $dateFin = $anneeAcademique->date_fin;
 
-            // === Calculer la fin du S1 : fin janvier de l'année suivante ===
             $anneeSuivante = $dateDebut->year + 1;
-            $s1Fin = \Carbon\Carbon::create($anneeSuivante, 1, 31); // 31 janvier
+            $s1Fin = Carbon::create($anneeSuivante, 1, 31); 
 
-            // Si la date de fin académique est avant le 31/01, on ajuste
             if ($s1Fin->gt($dateFin)) {
-                $s1Fin = $dateFin->copy()->subMonths(4); // S1 = 4 mois, S2 = 4 mois
+                $s1Fin = $dateFin->copy()->subMonths(4);
             }
 
             $s2Debut = $s1Fin->copy()->addDay();
 
-            // === Semestre 1 ===
-            Semestre::create([
+            // Semestre 1
+            $s1 = Semestre::create([
                 'annee_academique_id' => $anneeAcademique->id,
                 'numero' => 'S1',
                 'date_debut' => $dateDebut,
@@ -253,8 +281,8 @@ class AnneeAcademiqueController extends Controller
                 'is_active' => true,
             ]);
 
-            // === Semestre 2 ===
-            Semestre::create([
+            // Semestre 2
+            $s2 = Semestre::create([
                 'annee_academique_id' => $anneeAcademique->id,
                 'numero' => 'S2',
                 'date_debut' => $s2Debut,
@@ -264,15 +292,23 @@ class AnneeAcademiqueController extends Controller
                 'is_active' => false,
             ]);
 
+            // --- LOG SERVICE ---
+            LogService::write(
+                ActionLog::CREATE,
+                "Génération automatique des semestres S1 et S2 pour l'année {$anneeAcademique->nom}",
+                $anneeAcademique
+            );
+
             DB::commit();
 
             CacheService::forget([
                 'semestres:*',
                 'semestre:actif',
+                'annees_academiques:all'
             ]);
 
             return response()->json([
-                'message' => 'Semestres créés automatiquement avec des périodes réalistes',
+                'message' => 'Semestres créés automatiquement',
                 'semestres' => SemestreResource::collection($anneeAcademique->fresh()->semestres),
             ], 201);
 
@@ -293,7 +329,6 @@ class AnneeAcademiqueController extends Controller
         if ($anneeAcademique->etudiants()->exists()) { 
             return response()->json([
                 'message' => 'Impossible de supprimer une année avec des étudiants inscrits',
-                'etudiants_count' => $anneeAcademique->etudiants()->count(),
             ], 422);
         }
 
@@ -303,15 +338,35 @@ class AnneeAcademiqueController extends Controller
             ], 422);
         }
 
-        $anneeAcademique->delete();
+        try {
+            DB::beginTransaction();
 
-        CacheService::forget([
-            'annees_academiques:all',
-            'annee_academique:active',
-        ]);
+            $nomAnnee = $anneeAcademique->nom;
 
-        return response()->json([
-            'message' => 'Année académique supprimée avec succès',
-        ]);
+            // --- LOG SERVICE --- (Avant suppression pour garder l'ID en mémoire)
+            LogService::write(
+                ActionLog::DELETE,
+                "Suppression définitive de l'année académique : {$nomAnnee}",
+                $anneeAcademique
+            );
+
+            $anneeAcademique->delete();
+
+            DB::commit();
+
+            CacheService::forget([
+                'annees_academiques:all',
+                'annee_academique:active',
+                CacheService::KEYS['stats_dashboard']
+            ]);
+
+            return response()->json([
+                'message' => 'Année académique supprimée avec succès',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 }

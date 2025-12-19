@@ -13,6 +13,8 @@ use App\Models\Cours;
 use App\Models\Semestre;
 use App\Models\AnneeAcademique;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,8 @@ class InscriptionController extends Controller
 
             $inscriptions = [];
             $semestre = Semestre::findOrFail($request->semestre_id);
+            $etudiant = Etudiant::with('user')->findOrFail($request->etudiant_id);
+
             foreach ($request->cours_ids as $coursId) {
                 $inscriptions[] = [
                     'etudiant_id' => $request->etudiant_id,
@@ -43,11 +47,21 @@ class InscriptionController extends Controller
 
             Inscription::insertOrIgnore($inscriptions);
 
+            // --- LOG ACTIVITÉ ---
+            LogService::write(
+                ActionLog::CREATE,
+                "Inscription manuelle de l'étudiant {$etudiant->user->name} à " . count($inscriptions) . " cours.",
+                $etudiant,
+                null,
+                ['cours_ids' => $request->cours_ids]
+            );
+
             DB::commit();
 
             // Invalider les caches
             CacheService::forget([
                 'inscriptions:*',
+                "inscriptions:etudiant:{$etudiant->id}",
                 CacheService::key('etudiants_filiere', '*'),
                 CacheService::KEYS['stats_dashboard'],
             ]);
@@ -85,7 +99,6 @@ class InscriptionController extends Controller
                 ], 422);
             }
 
-            // Récupérer tous les cours du niveau + semestre
             $cours = Cours::where('niveau_id', $etudiant->niveau_id)
                 ->where('semestre_id', $semestreActif->id)
                 ->where('annee_academique_id', $anneeActive->id)
@@ -98,7 +111,6 @@ class InscriptionController extends Controller
             }
 
             $inscriptions = [];
-
             foreach ($cours as $c) {
                 $inscriptions[] = [
                     'etudiant_id' => $etudiant->id,
@@ -113,10 +125,18 @@ class InscriptionController extends Controller
 
             Inscription::insertOrIgnore($inscriptions);
 
+            // --- LOG ACTIVITÉ ---
+            LogService::write(
+                ActionLog::CREATE,
+                "Inscription automatique de {$etudiant->user->name} pour tous les cours du niveau {$etudiant->niveau->nom}.",
+                $etudiant
+            );
+
             DB::commit();
 
             CacheService::forget([
                 'inscriptions:*',
+                "inscriptions:etudiant:{$etudiant->id}",
                 CacheService::key('etudiants_filiere', $etudiant->filiere_id),
                 CacheService::KEYS['stats_dashboard'],
             ]);
@@ -146,13 +166,11 @@ class InscriptionController extends Controller
             $anneeActive = AnneeAcademique::active()->first();
             $semestre = Semestre::findOrFail($request->semestre_id);
 
-            // Étudiants concernés
             $etudiants = Etudiant::where('filiere_id', $request->filiere_id)
                 ->where('niveau_id', $request->niveau_id)
                 ->where('annee_academique_id', $anneeActive->id)
                 ->get();
 
-            // Cours concernés
             $cours = Cours::where('niveau_id', $request->niveau_id)
                 ->where('semestre_id', $request->semestre_id)
                 ->where('annee_academique_id', $anneeActive->id)
@@ -166,7 +184,6 @@ class InscriptionController extends Controller
             }
 
             $inscriptions = [];
-
             foreach ($etudiants as $etudiant) {
                 foreach ($cours as $c) {
                     $inscriptions[] = [
@@ -182,6 +199,13 @@ class InscriptionController extends Controller
             }
 
             Inscription::insertOrIgnore($inscriptions);
+
+            // --- LOG ACTIVITÉ ---
+            LogService::write(
+                ActionLog::CREATE,
+                "Inscription de masse : " . $etudiants->count() . " étudiants inscrits à " . $cours->count() . " cours.",
+                $semestre
+            );
 
             DB::commit();
 
@@ -216,7 +240,7 @@ class InscriptionController extends Controller
             $inscriptions = Inscription::with([
                 'etudiant.user',
                 'cours',
-                'semestre.anneeAcademique', // charger l'année académique via le semestre
+                'semestre.anneeAcademique',
             ])->latest()->paginate($perPage);
 
             return InscriptionResource::collection($inscriptions);
@@ -261,17 +285,38 @@ class InscriptionController extends Controller
      */
     public function destroy(Inscription $inscription)
     {
-        $filiereId = $inscription->etudiant->filiere_id;
+        try {
+            DB::beginTransaction();
+            
+            $filiereId = $inscription->etudiant->filiere_id;
+            $etudiantId = $inscription->etudiant_id;
+            $coursNom = $inscription->cours->nom;
+            $etudiantNom = $inscription->etudiant->user->name;
 
-        $inscription->delete();
+            // --- LOG ACTIVITÉ ---
+            LogService::write(
+                ActionLog::DELETE,
+                "Désinscription de l'étudiant {$etudiantNom} du cours {$coursNom}.",
+                $inscription
+            );
 
-        CacheService::forget([
-            "inscriptions:etudiant:{$inscription->etudiant_id}",
-            "inscriptions:cours:{$inscription->cours_id}",
-            'inscriptions:*',
-            CacheService::key('etudiants_filiere', $filiereId),
-        ]);
+            $inscription->delete();
 
-        return response()->json(['message' => 'Inscription supprimée avec succès']);
+            DB::commit();
+
+            CacheService::forget([
+                "inscriptions:etudiant:{$etudiantId}",
+                "inscriptions:cours:{$inscription->cours_id}",
+                'inscriptions:*',
+                CacheService::key('etudiants_filiere', $filiereId),
+                CacheService::KEYS['stats_dashboard'],
+            ]);
+
+            return response()->json(['message' => 'Inscription supprimée avec succès']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Erreur lors de la suppression', 'error' => $e->getMessage()], 500);
+        }
     }
 }

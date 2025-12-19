@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Cours;
 use App\Models\Professeur;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -26,8 +28,17 @@ class AffectationController extends Controller
 
             $anneeId = $cours->annee_academique_id;
 
-            // Nettoyer les anciennes affectations (optionnel : remplacement complet)
-            $cours->professeurs()->wherePivot('annee_academique_id', $anneeId)->detach();
+            // Récupérer les anciens IDs pour le suivi dans les logs avant suppression
+            $oldProfIds = $cours->professeurs()
+                ->wherePivot('annee_academique_id', $anneeId)
+                ->pluck('professeurs.id')
+                ->toArray();
+
+            // Nettoyer les anciennes affectations (remplacement complet)
+            DB::table('cours_professeur')
+                ->where('cours_id', $cours->id)
+                ->where('annee_academique_id', $anneeId)
+                ->delete();
 
             // Affecter les nouveaux professeurs
             $professeurs = Professeur::whereIn('id', $request->professeur_ids)->get();
@@ -35,12 +46,21 @@ class AffectationController extends Controller
                 $cours->professeurs()->attach($prof->id, ['annee_academique_id' => $anneeId]);
             }
 
+            LogService::write(
+                ActionLog::UPDATE,
+                "Nouvelle affectation de professeurs pour le cours : {$cours->nom}",
+                $cours,
+                ['professeur_ids' => $oldProfIds], // Valeurs avant
+                ['professeur_ids' => $request->professeur_ids] // Valeurs après
+            );
+
             DB::commit();
 
-            // Invalider le cache
+            // Invalider le cache (Cours spécifique, liste profs et Dashboard)
             CacheService::forget([
                 "cours:{$cours->id}",
                 'professeurs:*',
+                CacheService::KEYS['stats_dashboard'],
             ]);
 
             return response()->json([
@@ -63,19 +83,31 @@ class AffectationController extends Controller
     /**
      * Retirer un professeur d'un cours
      */
-    public function retirerProfesseur(Cours $cours, Professeur $professeur)
+    public function retirerProfesseur(Request $request, Cours $cours, Professeur $professeur)
     {
         try {
             DB::beginTransaction();
 
-            $cours->professeurs()->wherePivot('annee_academique_id', $cours->annee_academique_id)
+            // Action de retrait
+            $cours->professeurs()
+                ->wherePivot('annee_academique_id', $cours->annee_academique_id)
                 ->detach($professeur->id);
+
+            LogService::write(
+                ActionLog::DELETE,
+                "Retrait du professeur {$professeur->nom_complet} du cours {$cours->nom}",
+                $cours,
+                ['professeur_id' => $professeur->id],
+                null
+            );
 
             DB::commit();
 
+            // Invalider le cache
             CacheService::forget([
                 "cours:{$cours->id}",
                 "professeur:{$professeur->id}",
+                CacheService::KEYS['stats_dashboard'],
             ]);
 
             return response()->json([

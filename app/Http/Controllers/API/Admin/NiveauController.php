@@ -9,8 +9,11 @@ use App\Http\Resources\Admin\NiveauResource;
 use App\Models\Niveau;
 use App\Models\Filiere;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class NiveauController extends Controller
 {
@@ -72,19 +75,34 @@ class NiveauController extends Controller
      */
     public function store(CreateNiveauRequest $request)
     {
-        $niveau = Niveau::create($request->validated());
+        try {
+            return DB::transaction(function () use ($request) {
+                $niveau = Niveau::create($request->validated());
 
-        // Invalider les caches
-        CacheService::forgetFilieres();
-        CacheService::forget([
-            CacheService::key('niveaux', $niveau->filiere_id),
-            'niveaux:all',
-        ]);
+                // --- LOG ACTIVITÉ ---
+                LogService::write(
+                    ActionLog::CREATE,
+                    "Création du niveau : {$niveau->nom} pour la filière ID: {$niveau->filiere_id}",
+                    $niveau,
+                    null,
+                    $niveau->toArray()
+                );
 
-        return response()->json([
-            'message' => 'Niveau créé avec succès',
-            'niveau' => new NiveauResource($niveau->load('filiere')),
-        ], 201);
+                // Invalider les caches
+                CacheService::forgetFilieres();
+                CacheService::forget([
+                    CacheService::key('niveaux', $niveau->filiere_id),
+                    'niveaux:all',
+                ]);
+
+                return response()->json([
+                    'message' => 'Niveau créé avec succès',
+                    'niveau' => new NiveauResource($niveau->load('filiere')),
+                ], 201);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -92,20 +110,36 @@ class NiveauController extends Controller
      */
     public function update(UpdateNiveauRequest $request, Niveau $niveau)
     {
-        $niveau->update($request->validated());
+        try {
+            return DB::transaction(function () use ($request, $niveau) {
+                $oldValues = $niveau->toArray();
+                $niveau->update($request->validated());
 
-        // Invalider les caches
-        CacheService::forgetFilieres();
-        CacheService::forget([
-            CacheService::key('niveaux', $niveau->filiere_id),
-            'niveaux:all',
-            sprintf('niveau:%d', $niveau->id),
-        ]);
+                // --- LOG ACTIVITÉ ---
+                LogService::write(
+                    ActionLog::UPDATE,
+                    "Mise à jour du niveau : {$niveau->nom}",
+                    $niveau,
+                    $oldValues,
+                    $niveau->fresh()->toArray()
+                );
 
-        return response()->json([
-            'message' => 'Niveau mis à jour avec succès',
-            'niveau' => new NiveauResource($niveau->fresh()->load('filiere')),
-        ]);
+                // Invalider les caches
+                CacheService::forgetFilieres();
+                CacheService::forget([
+                    CacheService::key('niveaux', $niveau->filiere_id),
+                    'niveaux:all',
+                    sprintf('niveau:%d', $niveau->id),
+                ]);
+
+                return response()->json([
+                    'message' => 'Niveau mis à jour avec succès',
+                    'niveau' => new NiveauResource($niveau->fresh()->load('filiere')),
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -113,7 +147,7 @@ class NiveauController extends Controller
      */
     public function destroy(Niveau $niveau)
     {
-        // Vérifier s'il y a des étudiants
+        // Vérifications métier
         if ($niveau->etudiants()->count() > 0) {
             return response()->json([
                 'message' => 'Impossible de supprimer un niveau avec des étudiants inscrits',
@@ -121,7 +155,6 @@ class NiveauController extends Controller
             ], 422);
         }
 
-        // Vérifier s'il y a des cours
         if ($niveau->cours()->count() > 0) {
             return response()->json([
                 'message' => 'Impossible de supprimer un niveau avec des cours associés',
@@ -129,24 +162,40 @@ class NiveauController extends Controller
             ], 422);
         }
 
-        $filiereId = $niveau->filiere_id;
-        $niveau->delete();
+        try {
+            return DB::transaction(function () use ($niveau) {
+                $filiereId = $niveau->filiere_id;
+                $nomNiveau = $niveau->nom;
+                $oldData = $niveau->toArray();
 
-        // Invalider les caches
-        CacheService::forgetFilieres();
-        CacheService::forget([
-            CacheService::key('niveaux', $filiereId),
-            'niveaux:all',
-        ]);
+                // --- LOG ACTIVITÉ ---
+                LogService::write(
+                    ActionLog::DELETE,
+                    "Suppression du niveau : {$nomNiveau}",
+                    $niveau,
+                    $oldData
+                );
 
-        return response()->json([
-            'message' => 'Niveau supprimé avec succès',
-        ]);
+                $niveau->delete();
+
+                // Invalider les caches
+                CacheService::forgetFilieres();
+                CacheService::forget([
+                    CacheService::key('niveaux', $filiereId),
+                    'niveaux:all',
+                ]);
+
+                return response()->json([
+                    'message' => 'Niveau supprimé avec succès',
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
      * Créer tous les niveaux standards pour une filière
-     * (L1, L2, L3 pour Licence ou M1, M2 pour Master)
      */
     public function createStandardLevels(Request $request, Filiere $filiere)
     {
@@ -154,48 +203,62 @@ class NiveauController extends Controller
             'type' => ['required', 'in:licence,master'],
         ]);
 
-        $niveaux = [];
-        
-        if ($request->type === 'licence') {
-            $niveaux = [
-                ['nom' => 'L1', 'ordre' => 1],
-                ['nom' => 'L2', 'ordre' => 2],
-                ['nom' => 'L3', 'ordre' => 3],
-            ];
-        } else {
-            $niveaux = [
-                ['nom' => 'M1', 'ordre' => 1],
-                ['nom' => 'M2', 'ordre' => 2],
-            ];
-        }
+        try {
+            return DB::transaction(function () use ($request, $filiere) {
+                $niveauxDef = [];
+                
+                if ($request->type === 'licence') {
+                    $niveauxDef = [
+                        ['nom' => 'L1', 'ordre' => 1],
+                        ['nom' => 'L2', 'ordre' => 2],
+                        ['nom' => 'L3', 'ordre' => 3],
+                    ];
+                } else {
+                    $niveauxDef = [
+                        ['nom' => 'M1', 'ordre' => 1],
+                        ['nom' => 'M2', 'ordre' => 2],
+                    ];
+                }
 
-        $created = [];
-        foreach ($niveaux as $niveau) {
-            // Vérifier si le niveau n'existe pas déjà
-            $exists = Niveau::where('filiere_id', $filiere->id)
-                ->where('nom', $niveau['nom'])
-                ->exists();
+                $created = [];
+                foreach ($niveauxDef as $def) {
+                    $exists = Niveau::where('filiere_id', $filiere->id)
+                        ->where('nom', $def['nom'])
+                        ->exists();
 
-            if (!$exists) {
-                $created[] = Niveau::create([
-                    'filiere_id' => $filiere->id,
-                    'nom' => $niveau['nom'],
-                    'ordre' => $niveau['ordre'],
-                    'nombre_semestres' => 2,
+                    if (!$exists) {
+                        $created[] = Niveau::create([
+                            'filiere_id' => $filiere->id,
+                            'nom' => $def['nom'],
+                            'ordre' => $def['ordre'],
+                            'nombre_semestres' => 2,
+                        ]);
+                    }
+                }
+
+                // --- LOG ACTIVITÉ ---
+                if (count($created) > 0) {
+                    LogService::write(
+                        ActionLog::CREATE,
+                        "Génération automatique de " . count($created) . " niveaux standard ({$request->type}) pour la filière : {$filiere->nom}",
+                        $filiere
+                    );
+                }
+
+                // Invalider les caches
+                CacheService::forgetFilieres();
+                CacheService::forget([
+                    CacheService::key('niveaux', $filiere->id),
+                    'niveaux:all',
                 ]);
-            }
+
+                return response()->json([
+                    'message' => count($created) . ' niveau(x) créé(s) avec succès',
+                    'niveaux' => NiveauResource::collection(collect($created)),
+                ], 201);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
         }
-
-        // Invalider les caches
-        CacheService::forgetFilieres();
-        CacheService::forget([
-            CacheService::key('niveaux', $filiere->id),
-            'niveaux:all',
-        ]);
-
-        return response()->json([
-            'message' => count($created) . ' niveau(x) créé(s) avec succès',
-            'niveaux' => NiveauResource::collection(collect($created)),
-        ], 201);
     }
 }

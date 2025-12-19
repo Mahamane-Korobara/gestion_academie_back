@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\CreateCoursRequest;
 use App\Http\Resources\Admin\CoursResource;
 use App\Models\Cours;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -19,14 +21,16 @@ class CoursController extends Controller
     public function index(Request $request)
     {
         $niveauId = $request->get('niveau_id');
-        $semestre = $request->get('semestre');
+        $semestreId = $request->get('semestre_id');
+        $page = $request->get('page', 1);
 
-        $cacheKey = sprintf('cours:list:niveau:%s:semestre:%s', 
+        $cacheKey = sprintf('cours:list:niveau:%s:semestre:%s:page:%s', 
             $niveauId ?? 'all', 
-            $semestre ?? 'all'
+            $semestreId ?? 'all',
+            $page
         );
 
-        return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request, $niveauId, $semestre) {
+        return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($niveauId, $semestreId) {
             $query = Cours::with(['niveau.filiere', 'professeurs'])
                 ->withCount('inscriptions');
 
@@ -34,8 +38,8 @@ class CoursController extends Controller
                 $query->where('niveau_id', $niveauId);
             }
 
-            if ($semestre) {
-                $query->where('semestre_id', $semestre);
+            if ($semestreId) {
+                $query->where('semestre_id', $semestreId);
             }
 
             $cours = $query->latest()->get();
@@ -62,14 +66,24 @@ class CoursController extends Controller
                 );
             }
 
+            // --- LOG SERVICE ---
+            LogService::write(
+                ActionLog::CREATE,
+                "Création du cours : {$cours->nom} (Code: {$cours->code})",
+                $cours,
+                null,
+                $cours->toArray()
+            );
+
             DB::commit();
 
-            // Invalider les caches
+            // Invalider les caches liés aux cours et au dashboard
             CacheService::forgetCours();
+            CacheService::forget(CacheService::KEYS['stats_dashboard']);
 
             return response()->json([
                 'message' => 'Cours créé avec succès',
-                'cours' => new CoursResource($cours->load('professeurs')),
+                'cours' => new CoursResource($cours->load(['niveau.filiere', 'professeurs'])),
             ], 201);
 
         } catch (\Exception $e) {
@@ -86,8 +100,13 @@ class CoursController extends Controller
      */
     public function show(Cours $cours)
     {
-        $cours->load(['niveau.filiere', 'professeurs', 'evaluations']);
-        return new CoursResource($cours);
+        $cacheKey = "cours:show:{$cours->id}";
+
+        $data = Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($cours) {
+            return $cours->load(['niveau.filiere', 'professeurs', 'evaluations']);
+        });
+
+        return new CoursResource($data);
     }
 
     /**
@@ -97,17 +116,45 @@ class CoursController extends Controller
     {
         if ($cours->inscriptions()->count() > 0) {
             return response()->json([
-                'message' => 'Impossible de supprimer un cours avec des inscriptions',
+                'message' => 'Impossible de supprimer un cours avec des inscriptions actives',
             ], 422);
         }
 
-        $cours->delete();
+        try {
+            DB::beginTransaction();
 
-        // Invalider les caches
-        CacheService::forgetCours();
+            $nomCours = $cours->nom;
+            $oldData = $cours->toArray();
 
-        return response()->json([
-            'message' => 'Cours supprimé avec succès',
-        ]);
+            // --- LOG SERVICE --- (Avant suppression)
+            LogService::write(
+                ActionLog::DELETE,
+                "Suppression du cours : {$nomCours}",
+                $cours,
+                $oldData
+            );
+
+            $cours->delete();
+
+            DB::commit();
+
+            // Invalider les caches
+            CacheService::forgetCours();
+            CacheService::forget([
+                "cours:show:{$cours->id}",
+                CacheService::KEYS['stats_dashboard']
+            ]);
+
+            return response()->json([
+                'message' => 'Cours supprimé avec succès',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Erreur lors de la suppression',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

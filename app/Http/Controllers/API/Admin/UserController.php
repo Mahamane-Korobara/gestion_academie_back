@@ -10,6 +10,8 @@ use App\Models\Etudiant;
 use App\Models\Professeur;
 use App\Models\AnneeAcademique;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -29,7 +31,6 @@ class UserController extends Controller
         $roleFilter = $request->get('role');
         $search = $request->get('search');
 
-        // Clé de cache unique selon les filtres
         $cacheKey = sprintf(
             'users:list:page:%d:per_page:%d:role:%s:search:%s',
             $page,
@@ -41,12 +42,10 @@ class UserController extends Controller
         return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request, $roleFilter, $search, $perPage) {
             $query = User::with(['role', 'etudiant.filiere', 'etudiant.niveau', 'professeur']);
 
-            // Filtre par rôle
             if ($roleFilter) {
                 $query->whereHas('role', fn($q) => $q->where('name', $roleFilter));
             }
 
-            // Recherche
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -79,76 +78,68 @@ class UserController extends Controller
     public function store(CreateUserRequest $request)
     {
         try {
-            DB::beginTransaction();
+            return DB::transaction(function () use ($request) {
+                $userData = $request->only(['role_id', 'name', 'email', 'phone']);
+                $isEtudiantOuProf = $request->filled('etudiant') || $request->filled('professeur');
 
-            $userData = $request->only(['role_id', 'name', 'email', 'phone']);
-
-            // Déterminer si c'est un étudiant ou un professeur
-            $isEtudiantOuProf = $request->filled('etudiant') || $request->filled('professeur');
-
-            if ($isEtudiantOuProf) {
-                // Générer un mot de passe temporaire pour étudiants/profs
-                $temporaryPassword = Str::password(10, true, true, false);
-                $userData['password'] = Hash::make($temporaryPassword);
-                $userData['must_change_password'] = true;
-            } else {
-                // Pour les admins (ou autres rôles internes) : mot de passe sans obligation
-                if ($request->filled('password')) {
-                    $userData['password'] = Hash::make($request->password);
+                if ($isEtudiantOuProf) {
+                    $temporaryPassword = Str::password(10, true, true, false);
+                    $userData['password'] = Hash::make($temporaryPassword);
+                    $userData['must_change_password'] = true;
                 } else {
-                    // Mot de passe par défaut pour admin (non temporaire)
-                    $userData['password'] = Hash::make('admin123');
-                }
-                $userData['must_change_password'] = false; // pas d'obligation
-            }
-
-            $user = User::create($userData);
-
-            // Créer le profil étudiant si nécessaire
-            if ($request->filled('etudiant')) {
-                $anneeActive = AnneeAcademique::active()->first();
-                if (!$anneeActive) {
-                    throw new \Exception('Aucune année académique active n\'est définie. Veuillez en créer une.');
+                    $userData['password'] = Hash::make($request->password ?? 'admin123');
+                    $userData['must_change_password'] = false;
                 }
 
-                Etudiant::create([
-                    'user_id' => $user->id,
-                    'annee_academique_id' => $anneeActive->id,
-                    'date_inscription' => now(),
-                    ...$request->etudiant,
-                ]);
-            }
+                $user = User::create($userData);
 
-            // Créer le profil professeur si nécessaire
-            if ($request->filled('professeur')) {
-                Professeur::create([
-                    'user_id' => $user->id,
-                    'email_professionnel' => $user->email,
-                    'telephone' => $user->phone,
-                    ...$request->professeur,
-                ]);
-            }
+                // Profil étudiant
+                if ($request->filled('etudiant')) {
+                    $anneeActive = AnneeAcademique::active()->first();
+                    if (!$anneeActive) {
+                        throw new \Exception('Aucune année académique active définie.');
+                    }
 
-            DB::commit();
+                    Etudiant::create([
+                        'user_id' => $user->id,
+                        'annee_academique_id' => $anneeActive->id,
+                        'date_inscription' => now(),
+                        ...$request->etudiant,
+                    ]);
+                }
 
-            CacheService::forgetUsers();
+                // Profil professeur
+                if ($request->filled('professeur')) {
+                    Professeur::create([
+                        'user_id' => $user->id,
+                        'email_professionnel' => $user->email,
+                        'telephone' => $user->phone,
+                        ...$request->professeur,
+                    ]);
+                }
 
-            // Envoyer les identifiants par email SEULEMENT pour étudiants/profs
-            if ($isEtudiantOuProf) {
-                $user->notify(new UserCredentialsSent($temporaryPassword));
-            }
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::CREATE,
+                    "Création de l'utilisateur : {$user->name} (Email: {$user->email})",
+                    $user,
+                    null,
+                    $user->toArray()
+                );
 
-            return response()->json([
-                'message' => 'Utilisateur créé avec succès',
-                'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
-            ], 201);
+                CacheService::forgetUsers();
 
+                if ($isEtudiantOuProf) {
+                    $user->notify(new UserCredentialsSent($temporaryPassword));
+                }
+
+                return response()->json([
+                    'message' => 'Utilisateur créé avec succès',
+                    'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
+                ], 201);
+            });
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Erreur lors de la création de l\'utilisateur',
-                'error' => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -157,16 +148,31 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        $user->update($request->only(['name', 'email', 'phone', 'is_active']));
+        try {
+            return DB::transaction(function () use ($request, $user) {
+                $oldValues = $user->toArray();
+                $user->update($request->only(['name', 'email', 'phone', 'is_active']));
 
-        // Invalider les caches
-        CacheService::forgetUsers();
-        CacheService::forget(CacheService::key('user', $user->id));
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::UPDATE,
+                    "Modification du profil de : {$user->name}",
+                    $user,
+                    $oldValues,
+                    $user->fresh()->toArray()
+                );
 
-        return response()->json([
-            'message' => 'Utilisateur mis à jour avec succès',
-            'user' => new UserResource($user->fresh()),
-        ]);
+                CacheService::forgetUsers();
+                CacheService::forget(CacheService::key('user', $user->id));
+
+                return response()->json([
+                    'message' => 'Utilisateur mis à jour avec succès',
+                    'user' => new UserResource($user->fresh()),
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -174,15 +180,28 @@ class UserController extends Controller
      */
     public function resetPassword(User $user)
     {
-        $user->update([
-            'password' => Hash::make('password123'),
-            'must_change_password' => true,
-        ]);
+        try {
+            return DB::transaction(function () use ($user) {
+                $user->update([
+                    'password' => Hash::make('password123'),
+                    'must_change_password' => true,
+                ]);
 
-        return response()->json([
-            'message' => 'Mot de passe réinitialisé avec succès',
-            'new_password' => 'password123',
-        ]);
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::UPDATE,
+                    "Réinitialisation du mot de passe pour : {$user->email}",
+                    $user
+                );
+
+                return response()->json([
+                    'message' => 'Mot de passe réinitialisé avec succès',
+                    'new_password' => 'password123',
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -190,36 +209,46 @@ class UserController extends Controller
      */
     public function toggleActive(User $user)
     {
-        $wasActive = $user->is_active;
-        $user->is_active = !$wasActive;
-        $user->save();
+        try {
+            return DB::transaction(function () use ($user) {
+                $wasActive = $user->is_active;
+                $user->is_active = !$wasActive;
+                $user->save();
 
-        // Invalider les caches
-        CacheService::forgetUsers();
-        CacheService::forget(CacheService::key('user', $user->id));
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::UPDATE,
+                    ($user->is_active ? "Réactivation" : "Désactivation") . " du compte de {$user->name}",
+                    $user,
+                    ['is_active' => $wasActive],
+                    ['is_active' => $user->is_active]
+                );
 
-        // Si on réactive un compte précédemment désactivé
-        if ($user->is_active && !$wasActive) {
-            // Vérifier que c'est un étudiant ou un professeur pas un admin
-            $userRole = $user->role?->name;
-            if (in_array($userRole, ['etudiant', 'professeur'])) {
-                $newPassword = \Illuminate\Support\Str::password(10, true, true, false);
-                $user->update([
-                    'password' => Hash::make($newPassword),
-                    'must_change_password' => true, // déclenche CheckPasswordChange
+                CacheService::forgetUsers();
+                CacheService::forget(CacheService::key('user', $user->id));
+
+                if ($user->is_active && !$wasActive) {
+                    $userRole = $user->role?->name;
+                    if (in_array($userRole, ['etudiant', 'professeur'])) {
+                        $newPassword = Str::password(10, true, true, false);
+                        $user->update([
+                            'password' => Hash::make($newPassword),
+                            'must_change_password' => true,
+                        ]);
+                        $user->notify(new UserCredentialsSent($newPassword, isReactivation: true));
+                    }
+                }
+
+                return response()->json([
+                    'message' => $user->is_active 
+                        ? 'Compte réactivé. Un nouveau mot de passe a été envoyé.' 
+                        : 'Compte désactivé avec succès.',
+                    'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
                 ]);
-
-                // Envoyer les nouveaux identifiants par email
-                $user->notify(new UserCredentialsSent($newPassword, isReactivation: true));
-            }
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
         }
-
-        return response()->json([
-            'message' => $user->is_active 
-                ? 'Compte réactivé. Un nouveau mot de passe a été envoyé par email.' 
-                : 'Compte désactivé avec succès.',
-            'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
-        ]);
     }
 
     /**
@@ -227,21 +256,30 @@ class UserController extends Controller
      */
     public function destroy(Request $request, User $user)
     {
-        // Empêcher la suppression de son propre compte
         if ($user->id === $request->user()->id) {
-            return response()->json([
-                'message' => 'Vous ne pouvez pas supprimer votre propre compte',
-            ], 403);
+            return response()->json(['message' => 'Action impossible sur soi-même'], 403);
         }
 
-        $user->delete();
+        try {
+            return DB::transaction(function () use ($user) {
+                $userName = $user->name;
+                $oldData = $user->toArray();
 
-        // Invalider les caches
-        CacheService::forgetUsers();
+                // --- LOG SERVICE ---
+                LogService::write(
+                    ActionLog::DELETE,
+                    "Suppression définitive de l'utilisateur : {$userName}",
+                    $user,
+                    $oldData
+                );
 
-        return response()->json([
-            'message' => 'Utilisateur supprimé avec succès',
-        ]);
+                $user->delete();
+                CacheService::forgetUsers();
+
+                return response()->json(['message' => 'Utilisateur supprimé avec succès']);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
+        }
     }
-
 }

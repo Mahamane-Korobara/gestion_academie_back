@@ -8,10 +8,10 @@ use Illuminate\Http\Request;
 use App\Http\Resources\Admin\NoteResource;
 use App\Services\CalculAcademique;
 use App\Services\CacheService;
+use App\Services\LogService;
+use App\Enums\ActionLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use App\Models\LogActivite;
-use App\Enums\ActionLog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class NoteAdminController extends Controller
@@ -36,13 +36,24 @@ class NoteAdminController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($note, $request) {
+        $oldValues = $note->toArray();
+
+        DB::transaction(function () use ($note, $request, $oldValues) {
             // Validation de la note
             $note->update([
                 'statut' => 'validee',
                 'valide_par' => $request->user()->id,
                 'date_validation' => now(),
             ]);
+
+            // --- LOG SERVICE ---
+            LogService::write(
+                ActionLog::UPDATE,
+                "Validation individuelle de la note ID: {$note->id} pour l'étudiant: {$note->etudiant->user->name}",
+                $note,
+                $oldValues,
+                $note->fresh()->toArray()
+            );
 
             // Recalcul de la moyenne du semestre
             $this->calculAcademique->calculerMoyenneSemestre(
@@ -68,13 +79,11 @@ class NoteAdminController extends Controller
      */
     public function notesEnAttente(Request $request)
     {
-        // Autorisation globale admin
         $this->authorize('toutVoir', Note::class);
 
         $perPage = $request->integer('per_page', 20);
         $page = $request->get('page', 1);
 
-        // Création d'une clé de cache unique basée sur les filtres
         $filters = md5(json_encode([
             'cours_id' => $request->get('cours_id'),
             'etudiant_id' => $request->get('etudiant_id'),
@@ -83,7 +92,6 @@ class NoteAdminController extends Controller
         
         $cacheKey = "notes:en_attente:page:{$page}:filters:{$filters}";
 
-        // Utilisation du cache pour la liste
         $notes = Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request, $perPage) {
             $query = Note::whereIn('statut', ['brouillon', 'soumise'])
                 ->with([
@@ -115,7 +123,6 @@ class NoteAdminController extends Controller
      */
     public function validerMasse(Request $request)
     {
-        // Autorisation admin
         $this->authorize('validerNotes', Note::class);
 
         $request->validate([
@@ -126,15 +133,15 @@ class NoteAdminController extends Controller
         $userId = $request->user()->id;
         $now = now();
 
-        $notesExistantes = Note::whereIn('id', $request->note_ids)
+        $notesAValider = Note::whereIn('id', $request->note_ids)
             ->whereIn('statut', ['brouillon', 'soumise'])
-            ->count();
+            ->get();
 
-        if ($notesExistantes === 0) {
+        if ($notesAValider->isEmpty()) {
             return response()->json(['message' => 'Aucune note éligible à la validation'], 404);
         }
 
-        DB::transaction(function () use ($request, $userId, $now) {
+        DB::transaction(function () use ($request, $userId, $now, $notesAValider) {
             Note::whereIn('id', $request->note_ids)
                 ->whereIn('statut', ['brouillon', 'soumise'])
                 ->update([
@@ -142,16 +149,20 @@ class NoteAdminController extends Controller
                     'valide_par' => $userId,
                     'date_validation' => $now,
                 ]);
-        });
 
-        // Recalcul des moyennes APRES commit
-        $notes = Note::whereIn('id', $request->note_ids)
-            ->with(['etudiant', 'evaluation.semestre'])
-            ->get();
+            // --- LOG SERVICE (MASSE) ---
+            LogService::write(
+                ActionLog::UPDATE,
+                "Validation en masse de " . $notesAValider->count() . " notes par l'administrateur.",
+                null, // Pas de modèle unique pour une action de masse
+                ['note_ids' => $request->note_ids],
+                ['statut' => 'validee']
+            );
+        });
 
         $dejaCalcule = [];
 
-        foreach ($notes as $note) {
+        foreach ($notesAValider->load(['etudiant', 'evaluation.semestre']) as $note) {
             $key = $note->etudiant_id . '_' . $note->evaluation->semestre_id;
 
             if (isset($dejaCalcule[$key])) {
@@ -164,23 +175,12 @@ class NoteAdminController extends Controller
                 $userId
             );
 
-            // Invalider le cache du bulletin pour chaque étudiant concerné dans la masse
             CacheService::forgetBulletins($note->etudiant_id);
-            
             $dejaCalcule[$key] = true;
         }
 
-        // Invalider le cache des listes de notes
         CacheService::forget('notes:en_attente:*');
 
-        LogActivite::create([
-            'user_id' => $userId,
-            'action' => ActionLog::UPDATE,
-            'description' => 'Validation en masse de notes',
-            'model_type' => Note::class,
-        ]);
-
-        $notesValidees = Note::whereIn('id', $request->note_ids)->get();
-        return NoteResource::collection($notesValidees);
+        return NoteResource::collection($notesAValider->fresh());
     }
 }
