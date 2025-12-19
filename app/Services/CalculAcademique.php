@@ -188,7 +188,7 @@ class CalculAcademique
             if ($moyenne >= self::SEUIL_RATTRAPAGE) {
                 return DecisionBulletin::RATTRAPAGE;
             }
-            return DecisionBulletin::REDOUBLANT;
+            return DecisionBulletin::AJOURNE;
         }
     }
 }

@@ -7,7 +7,9 @@ use App\Models\Note;
 use Illuminate\Http\Request;
 use App\Http\Resources\Admin\NoteResource;
 use App\Services\CalculAcademique;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\Models\LogActivite;
 use App\Enums\ActionLog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -21,7 +23,7 @@ class NoteAdminController extends Controller
     ) {}
 
     /**
-     * Valider une note (unitaire)
+     * Valider une note 
      */
     public function validerNotes(Request $request, Note $note)
     {
@@ -50,6 +52,11 @@ class NoteAdminController extends Controller
             );
         });
 
+        // Invalider le cache du bulletin de cet étudiant
+        CacheService::forgetBulletins($note->etudiant_id);
+        // Invalider les listes de notes en attente
+        CacheService::forget('notes:en_attente:*');
+
         return response()->json([
             'message' => 'Note validée avec succès',
             'note' => $note->only(['id', 'etudiant_id', 'note', 'statut']),
@@ -65,29 +72,42 @@ class NoteAdminController extends Controller
         $this->authorize('toutVoir', Note::class);
 
         $perPage = $request->integer('per_page', 20);
+        $page = $request->get('page', 1);
 
-        $query = Note::whereIn('statut', ['brouillon', 'soumise'])
-            ->with([
-                'etudiant.user',
-                'evaluation.cours',
-                'evaluation.typeEvaluation',
-                'saisiPar'
-            ])
-            ->orderByDesc('date_saisie');
+        // Création d'une clé de cache unique basée sur les filtres
+        $filters = md5(json_encode([
+            'cours_id' => $request->get('cours_id'),
+            'etudiant_id' => $request->get('etudiant_id'),
+            'per_page' => $perPage
+        ]));
+        
+        $cacheKey = "notes:en_attente:page:{$page}:filters:{$filters}";
 
-        if ($coursId = $request->get('cours_id')) {
-            $query->whereHas('evaluation', fn ($q) =>
-                $q->where('cours_id', $coursId)
-            );
-        }
+        // Utilisation du cache pour la liste
+        $notes = Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request, $perPage) {
+            $query = Note::whereIn('statut', ['brouillon', 'soumise'])
+                ->with([
+                    'etudiant.user',
+                    'evaluation.cours',
+                    'evaluation.typeEvaluation',
+                    'saisiPar'
+                ])
+                ->orderByDesc('date_saisie');
 
-        if ($etudiantId = $request->get('etudiant_id')) {
-            $query->where('etudiant_id', $etudiantId);
-        }
+            if ($coursId = $request->get('cours_id')) {
+                $query->whereHas('evaluation', fn ($q) =>
+                    $q->where('cours_id', $coursId)
+                );
+            }
 
-        return NoteResource::collection(
-            $query->paginate($perPage)
-        );
+            if ($etudiantId = $request->get('etudiant_id')) {
+                $query->where('etudiant_id', $etudiantId);
+            }
+
+            return $query->paginate($perPage);
+        });
+
+        return NoteResource::collection($notes);
     }
 
     /**
@@ -105,7 +125,6 @@ class NoteAdminController extends Controller
 
         $userId = $request->user()->id;
         $now = now();
-
 
         $notesExistantes = Note::whereIn('id', $request->note_ids)
             ->whereIn('statut', ['brouillon', 'soumise'])
@@ -125,7 +144,7 @@ class NoteAdminController extends Controller
                 ]);
         });
 
-        // 2. Recalcul des moyennes APRÈS commit
+        // Recalcul des moyennes APRES commit
         $notes = Note::whereIn('id', $request->note_ids)
             ->with(['etudiant', 'evaluation.semestre'])
             ->get();
@@ -145,9 +164,14 @@ class NoteAdminController extends Controller
                 $userId
             );
 
+            // Invalider le cache du bulletin pour chaque étudiant concerné dans la masse
+            CacheService::forgetBulletins($note->etudiant_id);
+            
             $dejaCalcule[$key] = true;
         }
 
+        // Invalider le cache des listes de notes
+        CacheService::forget('notes:en_attente:*');
 
         LogActivite::create([
             'user_id' => $userId,

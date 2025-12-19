@@ -21,16 +21,18 @@ class EvaluationController extends Controller
     public function index(Request $request, Cours $cours)
     {
         $perPage = $request->get('per_page', 15);
-        $cacheKey = "evaluations:cours:{$cours->id}:page:{$request->get('page', 1)}:per_page:$perPage";
+        $page = $request->get('page', 1);
+        $cacheKey = "evaluations:cours:{$cours->id}:page:{$page}:per_page:$perPage";
 
-        return Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($cours, $perPage) {
-            $evaluations = $cours->evaluations()
+        // Ici on met en cache la collection brute pour éviter les soucis de sérialisation des Resources
+        $evaluations = Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($cours, $perPage) {
+            return $cours->evaluations()
                 ->with(['typeEvaluation', 'semestre', 'salle'])
                 ->latest('date_evaluation')
                 ->paginate($perPage);
-
-            return EvaluationResource::collection($evaluations);
         });
+
+        return EvaluationResource::collection($evaluations);
     }
 
     /**
@@ -38,8 +40,14 @@ class EvaluationController extends Controller
      */
     public function show(Evaluation $evaluation)
     {
-        $evaluation->load(['cours', 'typeEvaluation', 'semestre', 'salle']);
-        return new EvaluationResource($evaluation);
+        // On peut aussi mettre en cache un détail d'évaluation
+        $cacheKey = "evaluation:{$evaluation->id}";
+        
+        $data = Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($evaluation) {
+            return $evaluation->load(['cours', 'typeEvaluation', 'semestre', 'salle']);
+        });
+
+        return new EvaluationResource($data);
     }
 
     /**
@@ -47,12 +55,14 @@ class EvaluationController extends Controller
      */
     public function store(CreateEvaluationRequest $request, Cours $cours)
     {
-        $evaluationData = $request->validated();
-        $evaluationData['cours_id'] = $cours->id;
-        $evaluation = Evaluation::create($evaluationData);
+        $evaluation = DB::transaction(function () use ($request, $cours) {
+            $evaluationData = $request->validated();
+            $evaluationData['cours_id'] = $cours->id;
+            
+            return Evaluation::create($evaluationData);
+        });
 
-
-        // Invalider les caches
+        // On invalide le cache APRES la transaction réussie
         CacheService::forget([
             "evaluations:cours:{$cours->id}:*",
             "cours:{$cours->id}",
@@ -71,15 +81,21 @@ class EvaluationController extends Controller
     public function update(UpdateEvaluationRequest $request, Evaluation $evaluation)
     {
         $oldCoursId = $evaluation->cours_id;
-        $evaluation->update($request->validated());
+
+        DB::transaction(function () use ($request, $evaluation) {
+            $evaluation->update($request->validated());
+        });
+
         $newCoursId = $evaluation->cours_id;
 
+        // Invalidation des caches
         CacheService::forget([
             "evaluations:cours:{$oldCoursId}:*",
             "cours:{$oldCoursId}",
             "evaluations:cours:{$newCoursId}:*",
             "cours:{$newCoursId}",
             "evaluation:{$evaluation->id}",
+            CacheService::KEYS['stats_dashboard'],
         ]);
 
         return response()->json([
@@ -94,40 +110,53 @@ class EvaluationController extends Controller
     public function destroy(Evaluation $evaluation)
     {
         $coursId = $evaluation->cours_id;
-        $evaluation->delete();
+        $evaluationId = $evaluation->id;
+
+        DB::transaction(function () use ($evaluation) {
+            $evaluation->delete();
+        });
 
         CacheService::forget([
             "evaluations:cours:{$coursId}:*",
             "cours:{$coursId}",
-            "evaluation:{$evaluation->id}",
+            "evaluation:{$evaluationId}",
+            CacheService::KEYS['stats_dashboard'],
         ]);
 
         return response()->json(['message' => 'Évaluation supprimée avec succès']);
     }
 
     /**
-     * Liste toutes les évaluations (admin global)
+     * Liste toutes les évaluations
      */
     public function all(Request $request)
     {
         $perPage = $request->get('per_page', 15);
+        $page = $request->get('page', 1);
         $search = $request->get('search');
         $typeId = $request->get('type_evaluation_id');
         $statut = $request->get('statut');
 
-        $query = Evaluation::with(['cours', 'typeEvaluation', 'semestre']);
+        // Création d'une clé de cache basée sur les filtres
+        $filterHash = md5(json_encode($request->only(['search', 'type_evaluation_id', 'statut', 'per_page'])));
+        $cacheKey = "evaluations:all:page:{$page}:filters:{$filterHash}";
 
-        if ($search) {
-            $query->where('titre', 'like', "%{$search}%");
-        }
-        if ($typeId) {
-            $query->where('type_evaluation_id', $typeId);
-        }
-        if ($statut) {
-            $query->where('statut', $statut);
-        }
+        $evaluations = Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($search, $typeId, $statut, $perPage) {
+            $query = Evaluation::with(['cours', 'typeEvaluation', 'semestre']);
 
-        $evaluations = $query->latest()->paginate($perPage);
+            if ($search) {
+                $query->where('titre', 'like', "%{$search}%");
+            }
+            if ($typeId) {
+                $query->where('type_evaluation_id', $typeId);
+            }
+            if ($statut) {
+                $query->where('statut', $statut);
+            }
+
+            return $query->latest()->paginate($perPage);
+        });
+
         return EvaluationResource::collection($evaluations);
     }
 }

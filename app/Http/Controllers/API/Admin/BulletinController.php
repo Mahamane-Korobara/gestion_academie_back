@@ -8,7 +8,9 @@ use App\Models\Bulletin;
 use App\Models\Etudiant;
 use App\Models\Semestre;
 use App\Services\CalculAcademique;
+use App\Services\CacheService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class BulletinController extends Controller
@@ -36,6 +38,9 @@ class BulletinController extends Controller
             return response()->json(['message' => 'Aucune donnée à générer'], 404);
         }
 
+        // Invalidation du cache pour cet étudiant car les données vont changer
+        CacheService::forgetBulletins($etudiant->id);
+
         return new BulletinResource($bulletin);
     }
 
@@ -56,6 +61,9 @@ class BulletinController extends Controller
             return response()->json(['message' => 'Aucune donnée à générer'], 404);
         }
 
+        // Invalidation du cache également pour le bulletin annuel
+        CacheService::forgetBulletins($etudiant->id);
+
         return new BulletinResource($bulletin);
     }
 
@@ -64,21 +72,30 @@ class BulletinController extends Controller
      */
     public function show(Request $request, Etudiant $etudiant, ?int $semestreId = null)
     {
-        $query = Bulletin::where('etudiant_id', $etudiant->id);
+        // Définir la clé de cache unique
+        $cacheKey = $semestreId 
+            ? CacheService::key('bulletin_semestre', $etudiant->id, $semestreId)
+            : CacheService::key('bulletin_annuel', $etudiant->id, $request->annee_academique_id ?? 0);
 
-        if ($semestreId) {
-            $query->where('semestre_id', $semestreId);
-        } else {
-            // Bulletin annuel = semestre_id null
-            $query->whereNull('semestre_id');
-        }
+        // Récupérer le modèle brut depuis le cache
+        $bulletin = Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($etudiant, $semestreId) {
+            $query = Bulletin::where('etudiant_id', $etudiant->id)
+                ->with(['etudiant.user', 'semestre.anneeAcademique']); // Eager loading indispensable pour le cache
 
-        $bulletin = $query->first();
+            if ($semestreId) {
+                $query->where('semestre_id', $semestreId);
+            } else {
+                $query->whereNull('semestre_id');
+            }
+
+            return $query->first();
+        });
 
         if (!$bulletin) {
             return response()->json(['message' => 'Bulletin non trouvé'], 404);
         }
 
+        // Retourner la Resource APRES le cache
         return new BulletinResource($bulletin);
     }
 
@@ -89,23 +106,32 @@ class BulletinController extends Controller
     {
         $this->authorize('manage', Bulletin::class);
 
-        $query = Bulletin::with(['etudiant.user', 'semestre.anneeAcademique']);
+        // Créer une clé de cache basée sur TOUS les paramètres de filtrage
+        $params = $request->all();
+        ksort($params); // Trier pour que ?page=1&size=20 soit identique à ?size=20&page=1
+        $filterHash = md5(json_encode($params));
+        $cacheKey = "bulletins:list:filters:{$filterHash}";
 
-        if ($request->filled('etudiant_id')) {
-            $query->where('etudiant_id', $request->etudiant_id);
-        }
-        if ($request->filled('semestre_id')) {
-            $query->where('semestre_id', $request->semestre_id);
-        }
-        if ($request->filled('decision')) {
-            $query->where('decision', $request->decision);
-        }
-        if ($request->filled('est_genere')) {
-            $query->where('est_genere', $request->est_genere);
-        }
+        // Mettre en cache la collection paginée
+        $bulletins = Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request) {
+            $query = Bulletin::with(['etudiant.user', 'semestre.anneeAcademique']);
 
-        return BulletinResource::collection(
-            $query->paginate($request->get('per_page', 20))
-        );
+            if ($request->filled('etudiant_id')) {
+                $query->where('etudiant_id', $request->etudiant_id);
+            }
+            if ($request->filled('semestre_id')) {
+                $query->where('semestre_id', $request->semestre_id);
+            }
+            if ($request->filled('decision')) {
+                $query->where('decision', $request->decision);
+            }
+            if ($request->filled('est_genere')) {
+                $query->where('est_genere', $request->est_genere);
+            }
+
+            return $query->paginate($request->get('per_page', 20));
+        });
+
+        return BulletinResource::collection($bulletins);
     }
 }

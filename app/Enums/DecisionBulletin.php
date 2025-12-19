@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum DecisionBulletin: string
 {
+    case AJOURNE = 'ajourne';
     case ADMIS = 'admis';
     case RATTRAPAGE = 'rattrapage';
     case REDOUBLANT = 'redoublant';
@@ -16,6 +17,7 @@ enum DecisionBulletin: string
             self::ADMIS => 'Admis',
             self::RATTRAPAGE => 'Rattrapage',
             self::REDOUBLANT => 'Redoublant',
+            self::AJOURNE => 'Ajourné',
             self::DIPLOME => 'Diplômé',
             self::PASSE_CLASSE_SUPERIEURE => 'Passé en classe supérieure',
         };
@@ -26,7 +28,8 @@ enum DecisionBulletin: string
         return match($this) {
             self::ADMIS => 'green',
             self::RATTRAPAGE => 'yellow',
-            self::REDOUBLANT => 'orange',
+            self::REDOUBLANT => 'red',
+            self::AJOURNE => 'orange',
             self::DIPLOME => 'blue',
             self::PASSE_CLASSE_SUPERIEURE => 'green',
         };

@@ -35,6 +35,12 @@ class BulletinResource extends JsonResource
                     'nom' => $this->generePar->nom,
                 ];
             }),
+            'valide_par' => $this->whenLoaded('valide_par', function () {
+                return [
+                    'id' => $this->validePar->id,
+                    'nom' => $this->validePar->nom,
+                ];
+            }),
             'date_validation' => $this->date_validation,
         ];
     }
