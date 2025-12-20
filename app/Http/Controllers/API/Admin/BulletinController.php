@@ -12,6 +12,7 @@ use App\Services\CacheService;
 use App\Services\LogService;
 use App\Enums\ActionLog;
 use Illuminate\Http\Request;
+use App\Notifications\BulletinDisponible;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -40,6 +41,9 @@ class BulletinController extends Controller
             return response()->json(['message' => 'Aucune donnée à générer'], 404);
         }
 
+        $etudiant = $bulletin->etudiant;
+        $etudiant->notify(new BulletinDisponible($bulletin));
+        
         // --- LOG SERVICE ---
         LogService::write(
             ActionLog::CREATE,
@@ -71,6 +75,9 @@ class BulletinController extends Controller
         if (!$bulletin) {
             return response()->json(['message' => 'Aucune donnée à générer'], 404);
         }
+
+        $etudiant = $bulletin->etudiant;
+        $etudiant->notify(new BulletinDisponible($bulletin));
 
         // --- LOG SERVICE ---
         LogService::write(

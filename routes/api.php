@@ -16,6 +16,7 @@ use App\Http\Controllers\API\Admin\AffectationController;
 use App\Http\Controllers\API\Admin\BulletinController;
 use App\Http\Controllers\API\Professeur\NoteController;
 use App\Http\Controllers\API\Etudiant\EtudiantController;
+use App\Http\Controllers\API\Etudiant\BulletinEtudiantController;
 
 /*
 |--------------------------------------------------------------------------
@@ -249,4 +250,7 @@ Route::middleware([
     
     // Cours inscrits
     Route::get('/cours', [EtudiantController::class, 'cours']);
+
+    // Téléchargement PDF d'un bulletin
+    Route::get('/bulletins/{bulletinId}/pdf', [BulletinEtudiantController::class, 'telechargerPDF']);
 });

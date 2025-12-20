@@ -33,8 +33,7 @@ class BulletinEtudiantResource extends JsonResource
             // Mention calculée dynamiquement pour l'affichage étudiant
             'mention' => $this->calculerMention((float)$this->moyenne_generale),
             
-            // Lien vers le futur PDF
-            'url_download' => null, 
+            'url_download' => route('etudiant.bulletins.pdf', $this->id),
         ];
     }
 
