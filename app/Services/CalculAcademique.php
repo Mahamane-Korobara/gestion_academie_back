@@ -60,9 +60,9 @@ class CalculAcademique
                 $code = $evaluation->typeEvaluation->code;
 
                 // Gestion rattrapage
-                if ($code === 'EF' && $notesParCode->has('RAT')) {
-                    $noteAUtiliser = $notesParCode['RAT'];
-                } elseif ($code === 'RAT') {
+                if ($code === 'EF' && $notesParCode->has('RATT')) {
+                    $noteAUtiliser = $notesParCode['RATT'];
+                } elseif ($code === 'RATT') {
                     continue;
                 } else {
                     $noteAUtiliser = $notesParCode[$code] ?? null;

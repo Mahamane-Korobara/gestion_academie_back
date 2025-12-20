@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\Evaluation;
 use App\Models\Note;
 use App\Models\Bulletin;
+use App\Models\Etudiant;
+use App\Policies\EtudiantPolicy;
 use App\Policies\BulletinPolicy;
 use App\Policies\NotePolicy;
 use App\Policies\EvaluationPolicy;
@@ -16,5 +18,6 @@ class AuthServiceProvider extends ServiceProvider
         Evaluation::class => EvaluationPolicy::class,
         Note::class => NotePolicy::class,
         Bulletin::class => BulletinPolicy::class,
+        Etudiant::class => EtudiantPolicy::class,
     ];
 }

@@ -67,6 +67,8 @@ class NoteAdminController extends Controller
         CacheService::forgetBulletins($note->etudiant_id);
         // Invalider les listes de notes en attente
         CacheService::forget('notes:en_attente:*');
+        // Après validation d'une note
+        CacheService::forget("etudiant_dashboard_{$note->etudiant_id}");
 
         return response()->json([
             'message' => 'Note validée avec succès',
@@ -180,6 +182,8 @@ class NoteAdminController extends Controller
         }
 
         CacheService::forget('notes:en_attente:*');
+        // Après validation d'une note
+        CacheService::forget("etudiant_dashboard_{$note->etudiant_id}");
 
         return NoteResource::collection($notesAValider->fresh());
     }

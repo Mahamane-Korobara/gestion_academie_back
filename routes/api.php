@@ -15,6 +15,7 @@ use App\Http\Controllers\API\Admin\NoteAdminController;
 use App\Http\Controllers\API\Admin\AffectationController;
 use App\Http\Controllers\API\Admin\BulletinController;
 use App\Http\Controllers\API\Professeur\NoteController;
+use App\Http\Controllers\API\Etudiant\EtudiantController;
 
 /*
 |--------------------------------------------------------------------------
@@ -193,7 +194,7 @@ Route::middleware([
     Route::prefix('notes')->group(function () {
         Route::patch('/{note}/valider', [NoteAdminController::class, 'validerNotes']);
         Route::get('/en-attente', [NoteAdminController::class, 'notesEnAttente']);
-        Route::post('/notes/valider-masse', [NoteAdminController::class, 'validerMasse']);
+        Route::post('/valider-masse', [NoteAdminController::class, 'validerMasse']);
     });
 
     // -------------------------------------------------------------------------
@@ -237,5 +238,15 @@ Route::middleware([
     'check.user.active',
     'check.password.change'
 ])->prefix('etudiant')->group(function () {
-     // Routes étudiant
+    // Dashboard principal
+    Route::get('/dashboard', [EtudiantController::class, 'dashboard']);
+    
+    // Bulletins académiques
+    Route::get('/bulletins', [EtudiantController::class, 'bulletins']);
+    
+    // Notes détaillées
+    Route::get('/notes', [EtudiantController::class, 'notes']);
+    
+    // Cours inscrits
+    Route::get('/cours', [EtudiantController::class, 'cours']);
 });
