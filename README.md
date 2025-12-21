@@ -1,4 +1,4 @@
-# Système de Gestion Académique
+# Système de Gestion Académique v0.3.0
 
 ## 📋 Table des matières
 
@@ -9,11 +9,13 @@
 - [Architecture du projet](#architecture-du-projet)
 - [Base de données](#base-de-données)
 - [Authentification](#authentification)
-- [État détaillé du projet](#état-détaillé-du-projet-v010)
-- [Requests & Resources API](#-requests--resources-api)
-- [Routes API](#-routes-api-détaillées)
+- [Controllers & Routes](#-controllers--routes-api)
+- [Requests & Resources](#-requests--resources-api)
+- [Policies & Authorization](#-policies--authorization)
+- [Services & Helpers](#-services--helpers)
 - [Middleware & Sécurité](#-middleware--architecture-de-sécurité)
 - [Système de cache](#-système-de-cache)
+- [État du projet](#-état-détaillé-du-projet)
 - [Tests](#-tests)
 - [Commandes utiles](#-commandes-utiles)
 - [Sécurité](#-sécurité)
@@ -25,22 +27,27 @@
 
 ## 🎯 Vue d'ensemble
 
-Système complet de gestion académique pour établissements d'enseignement supérieur avec 3 types d'utilisateurs :
+Système complet de gestion académique pour établissements d'enseignement supérieur avec 3 types d'utilisateurs et une API RESTful complète.
 
-- **Administrateur** : Gestion complète du système
-- **Professeur** : Gestion des cours et notes
-- **Étudiant** : Consultation des notes et bulletins
+### Acteurs du système
+
+- **Administrateur** : Gestion complète (users, filières, cours, évaluations, notes, planning)
+- **Professeur** : Gestion des cours, saisie des notes, consultation planning
+- **Étudiant** : Consultation des notes, bulletins, emplois du temps
 
 ### Fonctionnalités principales
 
-✅ Gestion des utilisateurs (Admin, Professeurs, Étudiants)  
-✅ Gestion des filières et niveaux  
-✅ Gestion des cours et inscriptions  
-✅ Système d'authentification sécurisé avec Laravel Sanctum  
-✅ Système de cache optimisé (Redis/File)  
-✅ Logs d'activité complets  
-✅ Notifications par email  
-✅ API RESTful complète  
+✅ **Authentification** : Tokens API sécurisés (Laravel Sanctum)  
+✅ **Gestion des utilisateurs** : CRUD avec 3 rôles distincts  
+✅ **Gestion académique** : Filières, niveaux, cours, inscriptions  
+✅ **Évaluations & Notes** : CRUD complet, saisie (prof), validation (admin)  
+✅ **Emplois du temps** : Planning des cours avec détection de conflits  
+✅ **Bulletins** : Génération semestrielle et annuelle  
+✅ **Cache optimisé** : Redis/File avec TTL adaptatif  
+✅ **Logs d'activité** : Traçabilité complète de toutes les actions  
+✅ **API RESTful** : 80+ endpoints documentés  
+✅ **Validation stricte** : FormRequest sur tous les endpoints  
+✅ **Authorization** : Policies pour contrôle d'accès fine-grained  
 
 ---
 
@@ -52,8 +59,10 @@ Système complet de gestion académique pour établissements d'enseignement sup�
 - **Laravel Sanctum** (Authentification API)
 - **Redis** (Cache - optionnel)
 
-### Frontend (prévu)
-- **Nextjs**
+### Frontend (Planned v0.4.0)
+- **Next.js 14+**
+- **React 18+**
+- **TailwindCSS**
 
 ---
 
@@ -957,7 +966,176 @@ curl -X POST http://localhost:8000/api/admin/users \
 
 ---
 
+## 🛠️ Services & Helpers
 
+### Services implémentés (6)
+
+**CacheService**
+```php
+// Gestion centralisée du cache avec TTL adaptatif
+CacheService::remember($key, $ttl, $callback);
+CacheService::forgetFilieres();  // Invalider cache spécifique
+CacheService::SHORT_TTL   // 5 minutes
+CacheService::DEFAULT_TTL // 1 heure
+CacheService::LONG_TTL    // 24 heures
+```
+
+**LogService**
+```php
+// Logging structuré des actions (audit trail complet)
+LogService::write(
+    $action,        // ActionLog enum
+    $description,
+    $model,
+    $oldData,
+    $extraData
+);
+```
+
+**CalculAcademique**
+```php
+// Calculs de moyennes et décisions académiques
+CalculAcademique::calculerMoyenne($notes);
+CalculAcademique::decisionBulletin($moyenne);  // Admis/Ajourné/Rattrapage
+```
+
+**EmploiDuTempsService** ✅
+```php
+// Gestion planning des cours avec détection conflits
+EmploiDuTempsService::trouverConflits($data);
+EmploiDuTempsService::creerSeance($data);
+EmploiDuTempsService::professeursDisponibles($params);
+```
+
+**EmploiDuTempsEtudiantService** ✅
+```php
+// Planning personnalisé pour étudiant
+EmploiDuTempsEtudiantService::planningComplet($etudiant);
+EmploiDuTempsEtudiantService::planningJour($etudiant, $date);
+EmploiDuTempsEtudiantService::planningProchains($etudiant);
+```
+
+**PdfService**
+```php
+// Génération PDF (bulletins, documents)
+PdfService::genererBulletin($bulletin);
+PdfService::genererDocument($data);
+```
+
+---
+
+## 🔐 Policies & Authorization
+
+### 5 Policies pour contrôle d'accès fine-grained
+
+**BulletinPolicy**
+- `view()` : Admin peut voir tous, Étudiant ses bulletins
+- `create()` : Admin seulement
+- `delete()` : Admin seulement
+
+**EtudiantPolicy**
+- `view()` : Étudiant peut voir son profil, Admin tous
+- `update()` : Étudiant son profil, Admin tous
+
+**EmploiDuTempsPolicy**
+- `manage()` : Admin seulement
+- `viewProfesseur()` : Professeur peut voir son planning
+- `viewEtudiant()` : Étudiant peut voir son planning
+
+**EvaluationPolicy** ✅ NOUVEAU
+- `creer()` : Admin seulement
+- `modifier()` : Admin seulement
+- `supprimer()` : Admin seulement
+
+**NotePolicy** ✅ NOUVEAU
+- `saisirNotes()` : Professeur qui enseigne le cours seulement
+- `voir()` : Professeur voir ses cours, Admin voir tous, Étudiant voir ses notes
+- `valider()` : Admin seulement
+- `supprimer()` : Admin seulement
+
+---
+
+## 👥 Fonctionnalités par Acteur
+
+### Administrateur ✅
+
+**Gestion Académique :**
+- CRUD Filières et Niveaux
+- Créer niveaux standard auto (L1-L3, M1-M2)
+- CRUD Années académiques et Semestres
+- Gérer une année active à la fois
+- Créer semestres auto (S1, S2)
+
+**Gestion Cours :**
+- CRUD Cours
+- Affecter/retirer professeurs
+- Filtrer par niveau et semestre
+- Voir inscriptions par cours
+
+**Gestion Utilisateurs :**
+- Créer/Modifier/Supprimer utilisateurs
+- Gérer 3 rôles (Admin, Prof, Étudiant)
+- Réinitialiser mots de passe
+- Activer/Désactiver comptes
+- Voir dernière connexion
+
+**Gestion Inscriptions :**
+- Inscrire manuellement étudiants
+- Inscriptions en masse (CSV/JSON)
+- Auto-inscription par niveau
+- Voir inscriptions par étudiant/cours
+
+**Gestion Évaluations :**
+- Créer/Modifier/Supprimer évaluations
+- Lier à cours et type d'évaluation
+- Gérer dates, salles, horaires
+
+**Gestion Notes :**
+- Valider notes individuelles
+- Lister notes en attente
+- Valider en masse (jusqu'à 100 notes)
+- Voir historique saisie/validation
+
+**Gestion Planning :**
+- Créer emplois du temps
+- Détecter conflits (niveau, prof, salle)
+- Voir disponibilités profs/cours
+- Supprimer séances
+
+**Dashboard :**
+- Voir statistiques globales
+- Étudiants par filière
+- Dernière activité
+- Données formatées
+
+### Professeur ✅
+
+**Gestion Notes :**
+- Saisir notes pour ses évaluations
+- Voir statut (brouillon, soumise, validée)
+- Modifier notes en brouillon
+
+**Consultation :**
+- Voir son emploi du temps personnel
+- Voir ses cours et inscriptions
+- Voir moyennes de ses étudiants
+
+### Étudiant ✅
+
+**Consultation Notes :**
+- Voir ses notes par évaluation
+- Voir ses bulletins (semestriels et annuels)
+- Télécharger bulletins en PDF
+- Voir ses cours inscrits
+
+**Emploi du Temps :**
+- Voir planning complet
+- Voir planning de la semaine
+- Voir planning du jour
+- Voir résumé des cours
+- Voir prochains cours à venir
+
+---
 
 ## 🔥 Système de cache
 
@@ -1529,9 +1707,55 @@ LOG_LEVEL=error
 
 ---
 
+## 📊 Résumé des composants
+
+| Composant | Nombre | Status |
+|-----------|--------|--------|
+| **Controllers** | 20 | ✅ Complet |
+| **Models** | 21 | ✅ Complet |
+| **Migrations** | 30+ | ✅ Complet |
+| **Requests** | 20 | ✅ Complet |
+| **Resources** | 15 | ✅ Complet |
+| **Policies** | 5 | ✅ Complet |
+| **Services** | 6 | ✅ Complet |
+| **Enums** | 14 | ✅ Complet |
+| **Routes API** | 80+ | ✅ Complet |
+| **Endpoints** | 80+ | ✅ Complet |
+
+---
+
 ## 🎉 Changelog
 
-### Version 0.2.0 - NOUVEAU ✨
+### Version 0.3.0 (Actuelle) - ✅ NOUVEAU
+
+**Ajouté :**
+- ✅ 3 nouveaux Controllers Étudiant (notes, bulletins, emplois du temps)
+- ✅ 1 nouveau Controller Professeur (EmploiDuTempsProfesseurController)
+- ✅ Service EmploiDuTempsService pour gestion planning
+- ✅ Service EmploiDuTempsEtudiantService pour planning personnalisé
+- ✅ Détection de conflits (niveau, professeur, salle)
+- ✅ Disponibilités (professeurs et cours disponibles)
+- ✅ 5 Policies d'authorization (Bulletin, Étudiant, EmploiDuTemps, Evaluation, Note)
+- ✅ 15 Resources API (ajout Etudiant et Professeur Resources)
+- ✅ 80+ endpoints API complets
+- ✅ Emplois du temps avec gestion salle et horaires
+- ✅ Vérification conflits d'horaires automatique
+
+**Fixé :**
+- ✅ Namespace StoreEmploiDuTempsRequest (App\Http\Requests\Admin)
+- ✅ Table emploi_du_temps (renommée correcte)
+- ✅ Validations semestre dans les requests
+- ✅ N+1 queries optimisées avec eager loading
+
+**Documenté :**
+- ✅ Tous les 20 controllers documentés
+- ✅ Toutes les routes API (80+)
+- ✅ Services et patterns d'implémentation
+- ✅ Schéma base de données complet
+- ✅ Policies et authorization fine-grained
+- ✅ Fonctionnalités par acteur (Admin/Prof/Étudiant)
+
+### Version 0.2.0 - 🎯 Évaluations & Notes
 
 **Ajouté :**
 - 4 nouveaux Controllers (Evaluation, Affectation, NoteAdmin, NoteController)
@@ -1588,20 +1812,206 @@ LOG_LEVEL=error
 - 20 Models Eloquent
 - API RESTful
 
-**À venir (v0.3.0) :**
-- Controllers Étudiant (consultation notes, bulletins)
-- Génération des bulletins (PDF)
-- Calcul moyennes automatiques
-- Emplois du temps complets
-- Système d'annonces
-- Notifications push
-- Messagerie interne
-- Export PDF/Excel
-- Tests unitaires
-- Swagger/OpenAPI documentation
+**À venir (v0.4.0) :**
+- [ ] Tests unitaires complets
+- [ ] Interface frontend (Next.js)
+- [ ] Swagger/OpenAPI documentation
+- [ ] Système d'annonces complet
+- [ ] Notifications push
+- [ ] Messagerie interne
+- [ ] Export PDF/Excel
+- [ ] Multi-langue (i18n)
+- [ ] Dark mode UI
+- [ ] Mobile app (React Native)
 
 ---
 
-**Dernière mise à jour :** 17 décembre 2025  
-**Version :** 0.2.0 - Évaluations & Notes  
-**Statut :** En développement actif 🚧
+## 📊 Résumé des composants
+
+| Composant | Nombre | Status |
+|-----------|--------|--------|
+| **Controllers** | 20 | ✅ Complet |
+| **Models** | 21 | ✅ Complet |
+| **Migrations** | 30+ | ✅ Complet |
+| **Requests** | 20 | ✅ Complet |
+| **Resources** | 15 | ✅ Complet |
+| **Policies** | 5 | ✅ Complet |
+| **Services** | 6 | ✅ Complet |
+| **Enums** | 14 | ✅ Complet |
+| **Routes API** | 80+ | ✅ Complet |
+| **Endpoints** | 80+ | ✅ Complet |
+
+---
+
+## 👥 Fonctionnalités par Acteur
+
+### Administrateur ✅
+
+**Gestion Académique :**
+- CRUD Filières et Niveaux
+- Créer niveaux standard auto (L1-L3, M1-M2)
+- CRUD Années académiques et Semestres
+- Gérer une année active à la fois
+- Créer semestres auto (S1, S2)
+
+**Gestion Cours :**
+- CRUD Cours
+- Affecter/retirer professeurs
+- Filtrer par niveau et semestre
+- Voir inscriptions par cours
+
+**Gestion Utilisateurs :**
+- Créer/Modifier/Supprimer utilisateurs
+- Gérer 3 rôles (Admin, Prof, Étudiant)
+- Réinitialiser mots de passe
+- Activer/Désactiver comptes
+
+**Gestion Inscriptions :**
+- Inscrire manuellement étudiants
+- Inscriptions en masse (CSV/JSON)
+- Auto-inscription par niveau
+- Voir inscriptions par étudiant/cours
+
+**Gestion Évaluations :**
+- Créer/Modifier/Supprimer évaluations
+- Lier à cours et type d'évaluation
+- Gérer dates, salles, horaires
+
+**Gestion Notes :**
+- Valider notes individuelles
+- Lister notes en attente
+- Valider en masse (jusqu'à 100 notes)
+- Voir historique saisie/validation
+
+**Gestion Planning :**
+- Créer emplois du temps
+- Détecter conflits (niveau, prof, salle)
+- Voir disponibilités profs/cours
+- Supprimer séances
+
+**Dashboard :**
+- Voir statistiques globales
+- Étudiants par filière
+- Dernière activité
+
+### Professeur ✅
+
+**Gestion Notes :**
+- Saisir notes pour ses évaluations
+- Voir statut (brouillon, soumise, validée)
+- Modifier notes en brouillon
+
+**Consultation :**
+- Voir son emploi du temps personnel
+- Voir ses cours et inscriptions
+- Voir moyennes de ses étudiants
+
+### Étudiant ✅
+
+**Consultation :**
+- Voir ses notes par évaluation
+- Voir ses bulletins (sem. et annuels)
+- Télécharger bulletins en PDF
+- Voir ses cours inscrits
+
+**Emploi du Temps :**
+- Voir planning complet
+- Voir planning de la semaine
+- Voir planning du jour
+- Voir résumé des cours
+- Voir prochains cours
+
+---
+
+## 🛠️ Services Implémentés
+
+### CacheService
+Gestion centralisée du cache avec TTL adaptatif
+```php
+CacheService::remember($key, $ttl, $callback);
+CacheService::forgetFilieres();  // Invalider cache
+CacheService::SHORT_TTL   // 5 min
+CacheService::DEFAULT_TTL // 1h
+CacheService::LONG_TTL    // 24h
+```
+
+### LogService
+Logging structuré des actions (audit trail)
+```php
+LogService::write($action, $description, $model, $oldData, $extraData);
+```
+
+### CalculAcademique
+Calculs de moyennes et décisions
+```php
+CalculAcademique::calculerMoyenne($notes);
+CalculAcademique::decisionBulletin($moyenne);
+```
+
+### EmploiDuTempsService ✅
+Gestion planning des cours
+```php
+EmploiDuTempsService::trouverConflits();
+EmploiDuTempsService::creerSeance();
+```
+
+### EmploiDuTempsEtudiantService ✅
+Planning personnalisé pour étudiant
+```php
+EmploiDuTempsEtudiantService::planningComplet();
+EmploiDuTempsEtudiantService::planningJour();
+```
+
+### PdfService
+Génération PDF (bulletins, documents)
+```php
+PdfService::genererBulletin($bulletin);
+```
+
+---
+
+## 🔐 Policies (Authorization)
+
+### 5 Policies implémentées
+
+**BulletinPolicy**
+```php
+- view() : Admin voir tous, Étudiant ses bulletins
+- create() : Admin seulement
+- delete() : Admin seulement
+```
+
+**EtudiantPolicy**
+```php
+- view() : Étudiant voir son profil, Admin tous
+- update() : Étudiant son profil, Admin tous
+```
+
+**EmploiDuTempsPolicy**
+```php
+- manage() : Admin seulement
+- viewProfesseur() : Prof voir son planning
+- viewEtudiant() : Étudiant voir son planning
+```
+
+**EvaluationPolicy** ✅
+```php
+- creer() : Admin seulement
+- modifier() : Admin seulement
+- supprimer() : Admin seulement
+```
+
+**NotePolicy** ✅
+```php
+- saisirNotes() : Prof qui enseigne le cours
+- voir() : Prof cours, Admin tous, Étudiant ses notes
+- valider() : Admin seulement
+- supprimer() : Admin seulement
+```
+
+---
+
+**Dernière mise à jour :** 21 décembre 2025  
+**Version :** 0.3.0 - Emplois du temps & Services  
+**Statut :** En développement actif 🚧  
+**Contributeurs :** Mahamane-Korobara
