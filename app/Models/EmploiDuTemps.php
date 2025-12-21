@@ -13,6 +13,7 @@ class EmploiDuTemps extends Model
 
     protected $fillable = [
         'cours_id',
+        'niveau_id',        
         'professeur_id',
         'salle_id',
         'semestre_id',
@@ -22,19 +23,21 @@ class EmploiDuTemps extends Model
         'type_seance',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'jour' => JourSemaine::class,
-            'heure_debut' => 'datetime:H:i',
-            'heure_fin' => 'datetime:H:i',
-            'type_seance' => TypeSeance::class,
-        ];
-    }
+    protected $casts = [
+        'jour' => JourSemaine::class,
+        'heure_debut' => 'datetime:H:i',
+        'heure_fin' => 'datetime:H:i',
+        'type_seance' => TypeSeance::class,
+    ];
 
     public function cours()
     {
         return $this->belongsTo(Cours::class);
+    }
+
+    public function niveau()      
+    {
+        return $this->belongsTo(Niveau::class);
     }
 
     public function professeur()

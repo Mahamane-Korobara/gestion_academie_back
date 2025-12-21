@@ -14,9 +14,12 @@ use App\Http\Controllers\API\Admin\EvaluationController;
 use App\Http\Controllers\API\Admin\NoteAdminController;
 use App\Http\Controllers\API\Admin\AffectationController;
 use App\Http\Controllers\API\Admin\BulletinController;
+use App\Http\Controllers\API\Admin\EmploiDuTempsAdminController;
 use App\Http\Controllers\API\Professeur\NoteController;
+use App\Http\Controllers\API\Professeur\EmploiDuTempsProfesseurController;
 use App\Http\Controllers\API\Etudiant\EtudiantController;
 use App\Http\Controllers\API\Etudiant\BulletinEtudiantController;
+use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
 
 /*
 |--------------------------------------------------------------------------
@@ -213,6 +216,22 @@ Route::middleware([
         // Liste globale
         Route::get('/', [BulletinController::class, 'index']);
     });
+
+    // -------------------------------------------------------------------------
+    // Gestion des emplois du temps
+    // -------------------------------------------------------------------------
+    Route::prefix('emplois-du-temps')->group(function () {
+        Route::get('/', [EmploiDuTempsAdminController::class, 'index']);
+        Route::post('/', [EmploiDuTempsAdminController::class, 'store']);
+        Route::delete('/{emploiDuTemps}', [EmploiDuTempsAdminController::class, 'destroy']);
+        
+        // Emploi du temps par niveau
+        Route::get('/niveau/{niveauId}', [EmploiDuTempsAdminController::class, 'emploiDuTempsNiveau']);
+        
+        // Recherche de ressources disponibles
+        Route::get('/profs-disponibles', [EmploiDuTempsAdminController::class, 'professeursDisponibles']);
+        Route::get('/cours-disponibles', [EmploiDuTempsAdminController::class, 'coursDisponibles']);
+    });
 });
 
 // ============================================================================
@@ -228,6 +247,17 @@ Route::middleware([
     // Gestion des Saisies de notes
     // -------------------------------------------------------------------------
     Route::post('/evaluations/{evaluation}/notes', [NoteController::class, 'store']);
+
+    // -------------------------------------------------------------------------
+    // Gestion des emplois du temps
+    // -------------------------------------------------------------------------
+    Route::prefix('emploi-du-temps')->group(function () {
+        Route::get('/', [EmploiDuTempsProfesseurController::class, 'index']);
+        Route::get('/semaine', [EmploiDuTempsProfesseurController::class, 'semaine']);
+        Route::get('/jour', [EmploiDuTempsProfesseurController::class, 'jour']);
+        Route::get('/resume', [EmploiDuTempsProfesseurController::class, 'resume']);
+        Route::get('/niveaux', [EmploiDuTempsProfesseurController::class, 'mesNiveaux']);
+    });
 });
 
 // ============================================================================
@@ -253,4 +283,15 @@ Route::middleware([
 
     // Téléchargement PDF d'un bulletin
     Route::get('/bulletins/{bulletinId}/pdf', [BulletinEtudiantController::class, 'telechargerPDF']);
+    
+    // -------------------------------------------------------------------------
+    // Gestion des emplois du temps
+    // -------------------------------------------------------------------------
+    Route::prefix('emploi-du-temps')->group(function () {
+        Route::get('/', [EmploiDuTempsEtudiantController::class, 'index']);
+        Route::get('/semaine', [EmploiDuTempsEtudiantController::class, 'semaine']);
+        Route::get('/jour', [EmploiDuTempsEtudiantController::class, 'jour']);
+        Route::get('/resume', [EmploiDuTempsEtudiantController::class, 'resume']);
+        Route::get('/prochains', [EmploiDuTempsEtudiantController::class, 'prochains']);
+    });
 });

@@ -10,6 +10,8 @@ use App\Policies\EtudiantPolicy;
 use App\Policies\BulletinPolicy;
 use App\Policies\NotePolicy;
 use App\Policies\EvaluationPolicy;
+use App\Models\EmploiDuTemps;
+use App\Policies\EmploiDuTempsPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
@@ -19,5 +21,6 @@ class AuthServiceProvider extends ServiceProvider
         Note::class => NotePolicy::class,
         Bulletin::class => BulletinPolicy::class,
         Etudiant::class => EtudiantPolicy::class,
+        EmploiDuTemps::class => EmploiDuTempsPolicy::class
     ];
 }
