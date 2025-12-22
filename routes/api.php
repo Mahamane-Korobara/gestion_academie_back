@@ -15,11 +15,14 @@ use App\Http\Controllers\API\Admin\NoteAdminController;
 use App\Http\Controllers\API\Admin\AffectationController;
 use App\Http\Controllers\API\Admin\BulletinController;
 use App\Http\Controllers\API\Admin\EmploiDuTempsAdminController;
+use App\Http\Controllers\API\Admin\AnnonceController;
 use App\Http\Controllers\API\Professeur\NoteController;
 use App\Http\Controllers\API\Professeur\EmploiDuTempsProfesseurController;
+use App\Http\Controllers\API\Professeur\AnnonceProfesseurController;
 use App\Http\Controllers\API\Etudiant\EtudiantController;
 use App\Http\Controllers\API\Etudiant\BulletinEtudiantController;
 use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
+use App\Http\Controllers\API\Etudiant\AnnonceEtudiantController;
 
 /*
 |--------------------------------------------------------------------------
@@ -232,6 +235,18 @@ Route::middleware([
         Route::get('/profs-disponibles', [EmploiDuTempsAdminController::class, 'professeursDisponibles']);
         Route::get('/cours-disponibles', [EmploiDuTempsAdminController::class, 'coursDisponibles']);
     });
+
+    // -------------------------------------------------------------------------
+    // Gestion des annonces
+    // -------------------------------------------------------------------------
+    Route::prefix('annonces')->group(function () {
+        Route::get('/', [AnnonceController::class, 'index']);
+        Route::post('/', [AnnonceController::class, 'store']);
+        Route::get('/{annonce}', [AnnonceController::class, 'show']);
+        Route::put('/{annonce}', [AnnonceController::class, 'update']);
+        Route::delete('/{annonce}', [AnnonceController::class, 'destroy']);
+        Route::post('/{annonce}/toggle-active', [AnnonceController::class, 'toggleActive']);
+    });
 });
 
 // ============================================================================
@@ -258,6 +273,11 @@ Route::middleware([
         Route::get('/resume', [EmploiDuTempsProfesseurController::class, 'resume']);
         Route::get('/niveaux', [EmploiDuTempsProfesseurController::class, 'mesNiveaux']);
     });
+
+    // -------------------------------------------------------------------------
+    // Gestion des annonces
+    // -------------------------------------------------------------------------
+    Route::get('/annonces', [AnnonceProfesseurController::class, 'index']);
 });
 
 // ============================================================================
@@ -294,4 +314,10 @@ Route::middleware([
         Route::get('/resume', [EmploiDuTempsEtudiantController::class, 'resume']);
         Route::get('/prochains', [EmploiDuTempsEtudiantController::class, 'prochains']);
     });
+
+    // -------------------------------------------------------------------------
+    // Gestion des annonces
+    // -------------------------------------------------------------------------
+    Route::get('/annonces', [AnnonceEtudiantController::class, 'index']);
+
 });

@@ -71,6 +71,11 @@ class CacheService
         // Helpers Admin
         'profs_disponibles' => 'profs_disponibles_niv_%d_sem_%d_%s_%s_%s',
         'cours_disponibles' => 'cours_disponibles_prof_%d_niv_%d_sem_%d',
+
+        // Annonces
+        'annonces_global' => 'annonces:global:page:%d',
+        'annonces_filtre' => 'annonces:filtre:%s:%d:page:%d', // type:id:page
+        'annonce_detail'  => 'annonce:%d',
     ];
 
     /**
@@ -307,6 +312,20 @@ class CacheService
         ]);
     }
 
+    public static function forgetAnnonces(int $annonceId): void
+    {
+        self::forget([
+            // Le détail de l'annonce spécifique
+            sprintf('annonce:%d', $annonceId),
+            
+            // Toutes les listes
+            'annonces:*',
+            
+            // Le dashboard qui compte les annonces
+            self::KEYS['stats_dashboard'],
+        ]);
+    }
+
     // ============================================================
     // MÉTHODES UTILITAIRES
     // ============================================================
@@ -344,7 +363,7 @@ class CacheService
     }
 
     /**
-     * Vider tout le cache (à utiliser avec précaution)
+     * Vider tout le cache
      */
     public static function flush(): bool
     {
@@ -352,7 +371,7 @@ class CacheService
     }
 
     /**
-     * Obtenir des statistiques sur le cache (si disponible)
+     * Obtenir des statistiques sur le cache
      */
     public static function getStats(): array
     {
