@@ -69,10 +69,10 @@ class User extends Authenticatable
         return $this->hasMany(Annonce::class, 'auteur_id');
     }
 
-    public function notifications()
-    {
-        return $this->hasMany(Notification::class);
-    }
+    // public function notifications()
+    // {
+    //     return $this->hasMany(Notification::class);
+    // }
 
     public function messagesEnvoyes()
     {
@@ -133,6 +133,6 @@ class User extends Authenticatable
      */
     public function getRoleNameAttribute(): string
     {
-        return $this->role?->name ?? 'unknown';
+        return $this->role?->name ?? 'inconnu';
     }
 }

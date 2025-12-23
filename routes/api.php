@@ -19,10 +19,12 @@ use App\Http\Controllers\API\Admin\AnnonceController;
 use App\Http\Controllers\API\Professeur\NoteController;
 use App\Http\Controllers\API\Professeur\EmploiDuTempsProfesseurController;
 use App\Http\Controllers\API\Professeur\AnnonceProfesseurController;
+use App\Http\Controllers\API\Professeur\ProfesseurCoursController;
 use App\Http\Controllers\API\Etudiant\EtudiantController;
 use App\Http\Controllers\API\Etudiant\BulletinEtudiantController;
 use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
 use App\Http\Controllers\API\Etudiant\AnnonceEtudiantController;
+use App\Http\Controllers\API\MessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -129,7 +131,7 @@ Route::middleware([
         Route::patch('/{cours}', [CoursController::class, 'update']);
         Route::delete('/{cours}', [CoursController::class, 'destroy']);
 
-        // Affectation professeurs → cours
+        // Affectation professeurs =< cours
         Route::post('/{cours}/affecter-professeurs', [AffectationController::class, 'affecterProfesseurs']);
         Route::delete('/{cours}/professeurs/{professeur}', [AffectationController::class, 'retirerProfesseur']);
     });
@@ -274,10 +276,17 @@ Route::middleware([
         Route::get('/niveaux', [EmploiDuTempsProfesseurController::class, 'mesNiveaux']);
     });
 
+    Route::get('/cours', [ProfesseurCoursController::class, 'mesCours']);
+
     // -------------------------------------------------------------------------
     // Gestion des annonces
     // -------------------------------------------------------------------------
     Route::get('/annonces', [AnnonceProfesseurController::class, 'index']);
+
+    // -------------------------------------------------------------------------
+    // Gestion des messages de masse
+    // -------------------------------------------------------------------------
+    Route::post('/messages/masse', [MessageController::class, 'storeMasse']);
 });
 
 // ============================================================================
@@ -320,4 +329,21 @@ Route::middleware([
     // -------------------------------------------------------------------------
     Route::get('/annonces', [AnnonceEtudiantController::class, 'index']);
 
+});
+
+// ============================================================================
+// ROUTES AUTHENTIFIÉES communes à tous les rôles
+// ============================================================================
+Route::middleware(['auth:sanctum', 'check.user.active', 'check.password.change'])->group(function () {
+    
+    // Messagerie commune à tous les rôles
+    Route::prefix('messages')->group(function () {
+        Route::get('/', [MessageController::class, 'index']); 
+        Route::get('/unread-count', [MessageController::class, 'unreadCount']);
+        Route::post('/', [MessageController::class, 'store']);
+        Route::get('/{message}', [MessageController::class, 'show']);
+        Route::post('/{id}/reply', [MessageController::class, 'reply']);
+        Route::post('/{message}/mark-as-read', [MessageController::class, 'markAsRead']);
+        Route::delete('/{message}', [MessageController::class, 'destroy']);
+    });
 });

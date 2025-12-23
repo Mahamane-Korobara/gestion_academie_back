@@ -1,0 +1,26 @@
+[90m= [39m[34;4mApp\Models\User[39;24m {#6732
+    [34mid[39m: [35m1[39m,
+    [34mrole_id[39m: [35m1[39m,
+    [34mname[39m: "[32mAdministrateur Système[39m",
+    [34memail[39m: "[32madmin@gestion-academique.ml[39m",
+    [34memail_verified_at[39m: "[32m2025-12-15 16:53:59[39m",
+    [34mphone[39m: "[32m0550000000[39m",
+    [34mavatar[39m: [36mnull[39m,
+    [34mis_active[39m: [35m1[39m,
+    [34mmust_change_password[39m: [35m0[39m,
+    [34mlast_login_at[39m: "[32m2025-12-21 17:26:01[39m",
+    [34mlast_login_ip[39m: "[32m127.0.0.1[39m",
+    #[33mpassword[39m: "[32m$2y$12$aZJuAkvUSjoyk1rRM9.ZkO534mL5WlyMgWLuISdrSZAByWXTpMKsW[39m",
+    #[33mremember_token[39m: [36mnull[39m,
+    [34mcreated_at[39m: "[32m2025-12-15 16:53:59[39m",
+    [34mupdated_at[39m: "[32m2025-12-21 17:26:01[39m",
+    [34mrole[39m: [34;4mApp\Models\Role[39;24m {#6766
+      [34mid[39m: [35m1[39m,
+      [34mname[39m: "[32madmin[39m",
+      [34mdisplay_name[39m: "[32mAdministrateur[39m",
+      [34mdescription[39m: "[32mAccès complet au système[39m",
+      [34mcreated_at[39m: "[32m2025-12-15 16:53:59[39m",
+      [34mupdated_at[39m: "[32m2025-12-15 16:53:59[39m",
+    },
+  }
+

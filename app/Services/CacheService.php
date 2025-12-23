@@ -76,6 +76,9 @@ class CacheService
         'annonces_global' => 'annonces:global:page:%d',
         'annonces_filtre' => 'annonces:filtre:%s:%d:page:%d', // type:id:page
         'annonce_detail'  => 'annonce:%d',
+
+        // Professeur - Cours
+        'prof_cours_list' => 'prof:%d:cours:list',
     ];
 
     /**
@@ -294,7 +297,6 @@ class CacheService
 
     /**
      * Invalider tout le cache des emplois du temps
-     * Attention : Opération lourde, à utiliser avec précaution
      */
     public static function forgetAllEmploisDuTemps(): void
     {
@@ -326,6 +328,18 @@ class CacheService
         ]);
     }
 
+    /**
+     * Invalider la liste des cours d'un prof
+     */
+    public static function forgetProfCours(int $profId): void
+    {
+        self::forget(sprintf('prof:%d:cours:list', $profId));
+    }
+
+    public static function forgetUserMessages(int $userId): void
+    {
+        self::forget(sprintf('user:%d:messages:unread', $userId));
+    }
     // ============================================================
     // MÉTHODES UTILITAIRES
     // ============================================================
