@@ -16,6 +16,8 @@ use App\Models\Annonce;
 use App\Policies\AnnoncePolicy;
 use App\Models\Message;
 use App\Policies\MessagePolicy;
+use App\Models\Document;
+use App\Policies\DocumentPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
@@ -27,6 +29,7 @@ class AuthServiceProvider extends ServiceProvider
         Etudiant::class => EtudiantPolicy::class,
         EmploiDuTemps::class => EmploiDuTempsPolicy::class,
         Annonce::class => AnnoncePolicy::class,
-        Message::class => MessagePolicy::class
+        Message::class => MessagePolicy::class,
+        Document::class => DocumentPolicy::class
     ];
 }

@@ -1,28 +1,39 @@
-<?php 
+<?php
 
 namespace App\Enums;
 
 enum TypeDocument: string
 {
-    case CERTIFICAT_SCOLARITE = 'certificat_scolarite';
-    case RELEVE_NOTES = 'releve_notes';
-    case ATTESTATION_REUSSITE = 'attestation_reussite';
-    case CERTIFICAT_INSCRIPTION = 'certificat_inscription';
-    case DIPLOME = 'diplome';
-
-    public function label(): string
-    {
-        return match($this) {
-            self::CERTIFICAT_SCOLARITE => 'Certificat de scolarité',
-            self::RELEVE_NOTES => 'Relevé de notes',
-            self::ATTESTATION_REUSSITE => 'Attestation de réussite',
-            self::CERTIFICAT_INSCRIPTION => 'Certificat d\'inscription',
-            self::DIPLOME => 'Diplôme',
-        };
-    }
+    case PDF = 'pdf';
+    case WORD = 'word';
+    case EXCEL = 'excel';
+    case POWERPOINT = 'powerpoint';
+    case IMAGE = 'image';
 
     public static function values(): array
     {
         return array_column(self::cases(), 'value');
+    }
+
+    public static function mimeTypes(): array
+    {
+        return [
+            'pdf' => ['application/pdf'],
+            'word' => ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            'excel' => ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            'powerpoint' => ['application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+            'image' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        ];
+    }
+
+    public static function extensions(): array
+    {
+        return [
+            'pdf' => ['pdf'],
+            'word' => ['doc', 'docx'],
+            'excel' => ['xls', 'xlsx'],
+            'powerpoint' => ['ppt', 'pptx'],
+            'image' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        ];
     }
 }

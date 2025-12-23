@@ -20,11 +20,13 @@ use App\Http\Controllers\API\Professeur\NoteController;
 use App\Http\Controllers\API\Professeur\EmploiDuTempsProfesseurController;
 use App\Http\Controllers\API\Professeur\AnnonceProfesseurController;
 use App\Http\Controllers\API\Professeur\ProfesseurCoursController;
+use App\Http\Controllers\API\Professeur\ProfesseurDashboardController;
 use App\Http\Controllers\API\Etudiant\EtudiantController;
 use App\Http\Controllers\API\Etudiant\BulletinEtudiantController;
 use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
 use App\Http\Controllers\API\Etudiant\AnnonceEtudiantController;
 use App\Http\Controllers\API\MessageController;
+use App\Http\Controllers\API\DocumentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -260,6 +262,10 @@ Route::middleware([
     'check.user.active',
     'check.password.change'
 ])->prefix('professeur')->group(function () {
+
+    // Dashboard
+    Route::get('/dashboard', [ProfesseurDashboardController::class, 'index']);
+
     // -------------------------------------------------------------------------
     // Gestion des Saisies de notes
     // -------------------------------------------------------------------------
@@ -287,6 +293,16 @@ Route::middleware([
     // Gestion des messages de masse
     // -------------------------------------------------------------------------
     Route::post('/messages/masse', [MessageController::class, 'storeMasse']);
+
+    // -------------------------------------------------------------------------
+    // Gestion des documents
+    // -------------------------------------------------------------------------
+    Route::prefix('documents')->group(function () {
+        Route::get('/', [DocumentController::class, 'index']);      // Liste avec filtres
+        Route::post('/', [DocumentController::class, 'store']);     // Envoyer
+        Route::delete('/{document}', [DocumentController::class, 'destroy']); // Supprimer
+        Route::get('/{document}/download', [DocumentController::class, 'download']); // Télécharger
+    });
 });
 
 // ============================================================================
@@ -328,6 +344,14 @@ Route::middleware([
     // Gestion des annonces
     // -------------------------------------------------------------------------
     Route::get('/annonces', [AnnonceEtudiantController::class, 'index']);
+
+    // -------------------------------------------------------------------------
+    // Gestion des documents
+    // -------------------------------------------------------------------------
+    Route::prefix('documents')->group(function () {
+    Route::get('/', [DocumentController::class, 'index']);      // Liste avec filtres
+    Route::get('/{document}/download', [DocumentController::class, 'download']); // Télécharger
+});
 
 });
 

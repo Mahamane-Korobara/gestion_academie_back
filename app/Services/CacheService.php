@@ -79,6 +79,13 @@ class CacheService
 
         // Professeur - Cours
         'prof_cours_list' => 'prof:%d:cours:list',
+
+        // Documents
+        'documents_prof' => 'documents:prof:%d:filiere:%d:niveau:%d:cours:%d:page:%d',
+        'documents_etudiant' => 'documents:etudiant:%d:filiere:%d:niveau:%d:cours:%d:page:%d',
+
+        // Messages Utilisateur
+        'user_unread_messages' => 'user:%d:messages:unread',
     ];
 
     /**

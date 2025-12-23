@@ -29,6 +29,11 @@ class Filiere extends Model
         return $this->hasMany(Niveau::class);
     }
 
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+
     public function etudiants()
     {
         return $this->hasMany(Etudiant::class);

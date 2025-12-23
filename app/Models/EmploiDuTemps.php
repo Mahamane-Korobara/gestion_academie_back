@@ -11,6 +11,7 @@ class EmploiDuTemps extends Model
 {
     use HasFactory;
 
+    protected $table = 'emploi_du_temps';
     protected $fillable = [
         'cours_id',
         'niveau_id',        

@@ -26,6 +26,16 @@ class Niveau extends Model
         return $this->hasMany(Cours::class);
     }
 
+    public function emploisDuTemps()
+    {
+        return $this->hasMany(EmploiDuTemps::class);
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+
     public function etudiants()
     {
         return $this->hasMany(Etudiant::class);
