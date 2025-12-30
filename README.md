@@ -7,15 +7,19 @@
 - [Prérequis](#prérequis)
 - [Installation](#installation)
 - [Architecture du projet](#architecture-du-projet)
-- [Base de données](#base-de-données)
-- [Authentification](#authentification)
-- [Controllers & Routes](#-controllers--routes-api)
-- [Requests & Resources](#-requests--resources-api)
-- [Policies & Authorization](#-policies--authorization)
-- [Services & Helpers](#-services--helpers)
-- [Middleware & Sécurité](#-middleware--architecture-de-sécurité)
+- [Base de données & Migrations](#-base-de-données)
+- [Middlewares personnalisés](#-middleware-personnalisé-détaillé)
+- [Policies & Authorization](#-policies-authorization-détaillées)
+- [FormRequests & Resources](#-formrequests--resources-détaillées)
+- [Notifications Système](#-notifications-système)
+- [Observers](#-observers-event-listeners)
+- [Services détaillés](#-services-détaillés)
+- [Enums (Type Safety)](#-enums-type-safety)
+- [Statistiques du Projet](#-statistiques-du-projet---complètes)
+- [Authentification](#-authentification)
+- [Routes API détaillées](#-routes-api-détaillées)
+- [Fonctionnalités par acteur](#-fonctionnalités-par-acteur)
 - [Système de cache](#-système-de-cache)
-- [État du projet](#-état-détaillé-du-projet)
 - [Tests](#-tests)
 - [Commandes utiles](#-commandes-utiles)
 - [Sécurité](#-sécurité)
@@ -45,9 +49,13 @@ Système complet de gestion académique pour établissements d'enseignement sup�
 ✅ **Bulletins** : Génération semestrielle et annuelle  
 ✅ **Cache optimisé** : Redis/File avec TTL adaptatif  
 ✅ **Logs d'activité** : Traçabilité complète de toutes les actions  
-✅ **API RESTful** : 80+ endpoints documentés  
-✅ **Validation stricte** : FormRequest sur tous les endpoints  
-✅ **Authorization** : Policies pour contrôle d'accès fine-grained  
+✅ **API RESTful** : 93 endpoints documentés  
+✅ **Validation stricte** : 23 FormRequests  
+✅ **Authorization** : 8 Policies pour contrôle d'accès fine-grained  
+✅ **Services** : 8 services business logic  
+✅ **Notifications** : Notifications email UserCredentialsSent  
+✅ **Observers** : NoteObserver pour cache invalidation  
+✅ **Middlewares** : 3 middlewares sécurité personnalisés  
 
 ---
 
@@ -304,18 +312,21 @@ gestion-academique/
 │   │   ├── Document.php
 │   │   └── LogActivite.php
 │   │
-│   ├── Services/ (6 Services) ✅
+│   ├── Services/ (8 Services) ✅
 │   │   ├── CacheService.php (✅ Gestion Cache TTL)
 │   │   ├── LogService.php (✅ Audit Logging)
 │   │   ├── CalculAcademique.php (✅ Moyennes & Décisions)
 │   │   ├── EmploiDuTempsService.php (✅ Planning Gestion)
 │   │   ├── EmploiDuTempsEtudiantService.php (✅ Planning Personnalisé)
-│   │   └── PdfService.php (✅ Génération PDF)
+│   │   ├── PdfService.php (✅ Génération PDF)
+│   │   ├── DashboardService.php (✅ Statistiques Dashboard)
+│   │   └── ProfesseurDashboardService.php (✅ Dashboard Professeur)
 │   │
-│   ├── Notifications/
-│   │   └── UserCredentialsSent.php (✅ Notification Email)
+│   ├── Notifications/ (1 Notification) ✅
+│   │   └── UserCredentialsSent.php (✅ Envoi credentials email)
 │   │
-│   ├── Observers/ (Listeners pour Events)
+│   ├── Observers/ (1 Observer) ✅
+│   │   └── NoteObserver.php (✅ Cache invalidation on Note changes)
 │   │
 │   └── Traits/ (Méthodes Réutilisables)
 │
@@ -410,21 +421,23 @@ gestion-academique/
 
 ---
 
-## 📊 Statistiques du Projet
+## 📊 Statistiques du Projet - COMPLÈTES
 
 | Composant | Nombre | Statut | Details |
 |-----------|--------|--------|---------|
-| **Controllers** | 20 | ✅ | Auth(1), Admin(11), Professeur(2), Étudiant(3) |
+| **Controllers** | 23 | ✅ | Auth(1), Admin(11), Professeur(5), Étudiant(4), Common(2) |
 | **Models** | 21 | ✅ | Toutes relations Eloquent |
-| **Migrations** | 30+ | ✅ | Tables + Modifications |
-| **Requests** | 20 | ✅ | FormRequest Validation |
+| **Migrations** | 32 | ✅ | 22 Tables + 10 Modifications |
+| **Requests** | 23 | ✅ | FormRequest Validation (Auth 3, Admin 17, Common 3) |
 | **Resources** | 15 | ✅ | API Transformation |
-| **Policies** | 5 | ✅ | Authorization Fine-grained |
-| **Services** | 6 | ✅ | Business Logic |
-| **Enums** | 14 | ✅ | Type Safety |
-| **Routes API** | 80+ | ✅ | RESTful Endpoints |
+| **Policies** | 8 | ✅ | Authorization Fine-grained (BulletinPolicy, EtudiantPolicy, EmploiDuTempsPolicy, EvaluationPolicy, NotePolicy, AnnoncePolicy, DocumentPolicy, MessagePolicy) |
+| **Services** | 8 | ✅ | CacheService, LogService, CalculAcademique, EmploiDuTempsService (×2), DashboardService, ProfesseurDashboardService, PdfService |
+| **Enums** | 14 | ✅ | Type Safety (UserRole, Sexe, StudentStatus, JourSemaine, Semestre, StatutNote, DecisionBulletin, StatutEvaluation, TypeAnnonce, PrioriteAnnonce, TypeDocument, StatutDocument, TypeSeance, ActionLog) |
+| **Routes API** | 93 | ✅ | RESTful Endpoints complets |
+| **Notifications** | 1 | ✅ | UserCredentialsSent |
+| **Observers** | 1 | ✅ | NoteObserver (Cache invalidation) |
 | **Blade Views** | 2 | ✅ | Welcome + Bulletin PDF |
-| **Middlewares** | 3 | ✅ | Custom Auth |
+| **Middlewares** | 3 | ✅ | CheckUserActive, CheckPasswordChange, CheckRole |
 
 ---
 
@@ -491,6 +504,888 @@ php artisan make:migration create_table_name
 
 # Créer un model avec migration
 php artisan make:model ModelName -m
+```
+
+---
+
+## 💾 Migrations & Seeders détaillées
+
+### Migrations (32 au total) ✅
+
+#### Tables principales (22)
+
+```
+1. roles                          - Rôles système (Admin, Professeur, Étudiant)
+2. users                          - Comptes utilisateurs avec authentification
+3. filieres                       - Filières d'études
+4. niveaux                        - Niveaux académiques (L1, L2, L3, M1, M2)
+5. annees_academiques             - Années académiques (2024-2025, 2025-2026)
+6. semestres                      - Semestres (S1, S2) liés aux années
+7. etudiants                      - Profils étudiants avec matricule
+8. professeurs                    - Profils professeurs avec spécialité
+9. cours                          - Cours enseignés avec code et coefficient
+10. cours_professeur              - Table pivot (professeurs ↔ cours)
+11. inscriptions                  - Inscriptions étudiants aux cours
+12. salles                        - Salles de cours
+13. emplois_du_temps              - Planning des cours (jour, heure, lieu)
+14. types_evaluations             - Types d'évaluation (CC, Examen, TP, etc.)
+15. evaluations                   - Évaluations planifiées par cours
+16. notes                         - Notes des étudiants aux évaluations
+17. bulletins                     - Bulletins générés (semestriels/annuels)
+18. annonces                      - Annonces système
+19. messages                      - Messagerie interne
+20. documents                     - Documents générés/envoyés
+21. logs_activites                - Logs d'activité pour audit
+22. personal_access_tokens        - Tokens Sanctum pour authentification API
+```
+
+#### Migrations de modifications (10)
+
+```
+- 2025_*_update_cours_add_semestre_id.php
+- 2025_*_modify_semestre_id_nullable_in_bulletins_table.php
+- 2025_*_add_ajourne_to_bulletins_decision.php
+- 2025_*_add_soft_delete_columns_to_messages_table.php
+- 2025_*_create_emplois_du_temps_table.php
+- 2025_*_add_composite_indexes_to_emplois_du_temps.php
+- 2025_*_update_documents_type_enum.php
+- 2025_*_rename_emplois_du_temps_to_emploi_du_temps.php
+```
+
+### Seeders (4 au total) ✅
+
+**1. RoleSeeder**
+```php
+// Crée 3 rôles de base
+- Admin (permission: *)
+- Professeur (enseigne et saisit notes)
+- Étudiant (consulte ses données)
+```
+
+**2. AdminSeeder**
+```php
+// Crée 1 compte administrateur
+Email    : admin@gestion-academique.ml
+Password : admin123456
+Rôle     : Admin
+```
+
+**3. TypeEvaluationSeeder**
+```php
+// Crée 5 types d'évaluations
+- CC (Contrôle continu)
+- Examen
+- Projet
+- TP (Travaux pratiques)
+- Travail personnel
+```
+
+**4. DatabaseSeeder** (orchestrateur)
+```php
+// Appelle tous les seeders dans l'ordre:
+RoleSeeder
+AdminSeeder
+TypeEvaluationSeeder
+```
+
+**Exécution:**
+```bash
+# Tout refaire avec seeders
+php artisan migrate:fresh --seed
+
+# Ou seeder uniquement
+php artisan db:seed
+
+# Seeder spécifique
+php artisan db:seed --class=RoleSeeder
+```
+
+---
+
+## 📁 Middleware personnalisé détaillé
+
+### 1. CheckUserActive (Vérifier compte actif)
+
+```php
+namespace App\Http\Middleware;
+
+class CheckUserActive
+{
+    /**
+     * Vérifie que le compte utilisateur est actif
+     * Bloque les comptes désactivés par un admin
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        if ($request->user() && !$request->user()->is_active) {
+            return response()->json([
+                'message' => 'Votre compte a été désactivé. 
+                              Veuillez contacter l\'administration.',
+            ], 403);
+        }
+
+        return $next($request);
+    }
+}
+```
+
+**Utilisation:**
+```php
+Route::middleware('check.user.active')->group(function () {
+    // Toutes les routes authentifiées
+});
+```
+
+### 2. CheckPasswordChange (Forcer changement MDP)
+
+```php
+namespace App\Http\Middleware;
+
+class CheckPasswordChange
+{
+    /**
+     * Force les nouveaux utilisateurs à changer mot de passe
+     * Bloque accès sauf pour login/logout/change-password
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        if ($user->must_change_password && !$isExemptRoute) {
+            return response()->json([
+                'message' => 'Vous devez changer votre mot de passe',
+                'required_action' => 'change_password'
+            ], 403);
+        }
+
+        return $next($request);
+    }
+}
+```
+
+**Routes exclues:**
+```
+- /api/auth/change-password (POST)
+- /api/auth/logout (POST)
+- /api/auth/me (GET)
+```
+
+**Exemption pour Admins:**
+- Les administrateurs ne sont pas soumis à cette règle
+
+### 3. CheckRole (Vérification de rôle)
+
+```php
+namespace App\Http\Middleware;
+
+class CheckRole
+{
+    /**
+     * Vérifie que l'utilisateur a le rôle requis
+     * Filtre par RBAC (Role-Based Access Control)
+     */
+    public function handle(Request $request, Closure $next, 
+                          string ...$roles): Response
+    {
+        $userRole = $request->user()->role->name;
+
+        if (!in_array($userRole, $roles)) {
+            return response()->json([
+                'message' => 'Accès non autorisé. Permissions insuffisantes.',
+            ], 403);
+        }
+
+        return $next($request);
+    }
+}
+```
+
+**Utilisation:**
+```php
+// Route pour Admin seulement
+Route::middleware('role:admin')->group(function () {
+    Route::get('/admin/users', [UserController::class, 'index']);
+});
+
+// Route pour Professeur seulement
+Route::middleware('role:professeur')->group(function () {
+    Route::get('/professeur/cours', [CoursController::class, 'index']);
+});
+
+// Route pour Étudiant seulement
+Route::middleware('role:etudiant')->group(function () {
+    Route::get('/etudiant/notes', [NotesController::class, 'index']);
+});
+```
+
+---
+
+## 🔐 Policies (Authorization) détaillées
+
+### 8 Policies implémentées ✅
+
+**1. BulletinPolicy**
+```php
+- view(User $user, Bulletin $bulletin)
+  // Admin peut voir tous, Étudiant ses bulletins
+
+- create(User $user)
+  // Admin seulement
+
+- delete(User $user, Bulletin $bulletin)
+  // Admin seulement
+```
+
+**2. EtudiantPolicy**
+```php
+- view(User $user, Etudiant $etudiant)
+  // Étudiant peut voir son profil, Admin tous
+
+- update(User $user, Etudiant $etudiant)
+  // Étudiant son profil, Admin tous
+
+- delete(User $user, Etudiant $etudiant)
+  // Admin seulement
+```
+
+**3. EmploiDuTempsPolicy**
+```php
+- manage(User $user)
+  // Admin seulement
+
+- viewProfesseur(User $user)
+  // Professeur peut voir son planning
+
+- viewEtudiant(User $user)
+  // Étudiant peut voir son planning
+
+- create(User $user)
+  // Admin seulement
+
+- delete(User $user, EmploiDuTemps $emploi)
+  // Admin seulement
+```
+
+**4. EvaluationPolicy**
+```php
+- creer(User $user)
+  // Admin seulement
+
+- modifier(User $user, Evaluation $evaluation)
+  // Admin seulement
+
+- supprimer(User $user, Evaluation $evaluation)
+  // Admin seulement
+
+- voir(User $user, Evaluation $evaluation)
+  // Professeur (qui enseigne) et Admin
+```
+
+**5. NotePolicy**
+```php
+- saisirNotes(User $user, Evaluation $evaluation)
+  // Professeur qui enseigne le cours seulement
+
+- voir(User $user, Evaluation $evaluation)
+  // Professeur (ses cours), Admin (tous), Étudiant (ses notes)
+
+- valider(User $user, Evaluation $evaluation)
+  // Admin seulement
+
+- supprimer(User $user, Evaluation $evaluation)
+  // Admin seulement
+
+- voirNotes(User $user, Evaluation $evaluation)
+  // Étudiant (ses notes), Professeur (ses cours), Admin (tous)
+```
+
+**6. AnnoncePolicy**
+```php
+- create(User $user)
+  // Admin seulement
+
+- update(User $user, Annonce $annonce)
+  // Admin qui a créé ou admin général
+
+- delete(User $user, Annonce $annonce)
+  // Admin seulement
+
+- view(User $user, Annonce $annonce)
+  // Tous (si active) ou admin
+```
+
+**7. DocumentPolicy**
+```php
+- view(User $user, Document $document)
+  // Propriétaire du document ou destinataire
+
+- create(User $user)
+  // Professeur et Admin
+
+- delete(User $user, Document $document)
+  // Créateur ou Admin
+
+- download(User $user, Document $document)
+  // Propriétaire ou destinataire
+```
+
+**8. MessagePolicy**
+```php
+- view(User $user, Message $message)
+  // Expéditeur ou destinataire
+
+- reply(User $user, Message $message)
+  // Destinataire du message original
+
+- delete(User $user, Message $message)
+  // Expéditeur ou destinataire
+
+- markAsRead(User $user, Message $message)
+  // Destinataire
+```
+
+---
+
+## 📥 FormRequests & Resources détaillées
+
+### FormRequests (23 au total) ✅
+
+**Auth Requests (3):**
+- `LoginRequest` - Email, Password
+- `ChangePasswordRequest` - Old/New password validation
+- `UpdateProfileRequest` - Nom, Email, Phone
+
+**Admin Requests (17):**
+- `CreateUserRequest` - Utilisateur multi-rôles
+- `CreateFiliereRequest` - Filière (nom, code, durée)
+- `UpdateFiliereRequest` - Modification filière
+- `CreateNiveauRequest` - Niveau (filière, ordre, description)
+- `UpdateNiveauRequest` - Modification niveau
+- `CreateCoursRequest` - Cours (code, titre, coefficients, professeurs)
+- `CreateAnneeAcademiqueRequest` - Année (dates, active flag)
+- `UpdateAnneeAcademiqueRequest` - Modification année
+- `CreateSemestreRequest` - Semestre (numéro, dates, année)
+- `UpdateSemestreRequest` - Modification semestre
+- `CreateInscriptionRequest` - Inscription manuelle
+- `InscriptionMasseRequest` - Inscriptions en masse
+- `InscriptionNiveauRequest` - Auto-inscription niveau
+- `CreateEvaluationRequest` - Évaluation (cours, type, dates, salle)
+- `UpdateEvaluationRequest` - Modification évaluation
+- `StoreEmploiDuTempsRequest` - Planning (niveau, prof, salle, horaire)
+- `StoreBulletinRequest` - Bulletin (étudiant, semestre, décision)
+
+**Common Requests (3):**
+- `StoreMessageRequest` - Message (contenu, destinataire)
+- `ReplyMessageRequest` - Réponse message
+- `StoreDocumentRequest` - Document (titre, type, destinataires, file)
+
+### API Resources (15 au total) ✅
+
+**Admin Resources (12):**
+- `UserResource` - Utilisateur avec rôle et relation étudiant/professeur
+- `FiliereResource` - Filière avec niveaux et count étudiants
+- `FiliereStatResource` - Stats filière (pour dashboard)
+- `NiveauResource` - Niveau avec filière
+- `CoursResource` - Cours avec professeurs et count inscriptions
+- `AnneeAcademiqueResource` - Année avec counts (semestres, étudiants, cours)
+- `SemestreResource` - Semestre avec counts (inscriptions, évaluations, bulletins)
+- `InscriptionResource` - Inscription avec relations complètes
+- `EvaluationResource` - Évaluation avec type, cours, count notes
+- `NoteResource` - Note avec valeur, statut, relations
+- `BulletinResource` - Bulletin avec moyenne et décision
+- `EmploiDuTempsResource` - Planning avec jour/heure et ressources
+
+**Professeur Resources (1):**
+- `EmploiDuTempsProfesseurResource` - Planning personnalisé professeur
+
+**Étudiant Resources (2):**
+- `BulletinEtudiantResource` - Bulletin étudiant avec notes et décision
+- `EmploiDuTempsEtudiantResource` - Planning personnalisé étudiant
+
+---
+
+## 📦 Notifications Système
+
+### UserCredentialsSent ✅
+
+Notification email envoyée lors de la création d'un utilisateur ou réactivation.
+
+```php
+namespace App\Notifications;
+
+class UserCredentialsSent extends Notification
+{
+    public function __construct(
+        private string $temporaryPassword,
+        private bool $isReactivation = false
+    ) {}
+
+    // Envoie par email
+    public function via($notifiable): array
+    {
+        return ['mail'];
+    }
+
+    // Contient:
+    // - Email de l'utilisateur
+    // - Mot de passe temporaire
+    // - Avertissement changement obligatoire
+}
+```
+
+**Utilisation:**
+```php
+// À la création d'utilisateur
+$user->notify(new UserCredentialsSent($temporaryPassword));
+
+// À la réactivation
+$user->notify(new UserCredentialsSent($temporaryPassword, isReactivation: true));
+```
+
+---
+
+## 🔍 Observers (Event Listeners)
+
+### NoteObserver ✅
+
+Listener qui se déclenche lors de modifications sur le modèle Note pour invalider le cache.
+
+```php
+namespace App\Observers;
+
+class NoteObserver
+{
+    /**
+     * Se déclenche après création d'une note
+     * Invalide: cache étudiant, notes paginées, bulletins
+     */
+    public function created(Note $note): void
+
+    /**
+     * Se déclenche après modification d'une note
+     * Invalide: cache étudiant, notes paginées, bulletins
+     */
+    public function updated(Note $note): void
+
+    /**
+     * Se déclenche après suppression d'une note
+     * Invalide: cache étudiant, notes paginées, bulletins
+     */
+    public function deleted(Note $note): void
+}
+```
+
+**Détail du nettoyage cache:**
+```
+- etudiant:dashboard:{etudiant_id}
+- etudiant:{etudiant_id}:notes:page:* (pattern matching)
+- Tous les bulletins de l'étudiant
+```
+
+---
+
+## 🛠️ Services détaillés
+
+### 1. CacheService ✅
+
+Gestion centralisée du cache avec TTL adaptatif.
+
+```php
+namespace App\Services;
+
+class CacheService
+{
+    // Durées TTL
+    const SHORT_TTL = 300;      // 5 minutes
+    const DEFAULT_TTL = 3600;   // 1 heure
+    const LONG_TTL = 86400;     // 24 heures
+
+    // Méthodes principales
+    public static function key(string $key, ...$params): string
+    public static function remember(string $key, int $ttl, $callback)
+    public static function get(string $key)
+    public static function put(string $key, $value, int $ttl = null)
+    public static function forget(string $key)
+    public static function forgetPattern(string $pattern)
+}
+```
+
+**Clés de cache implémentées:**
+```
+Users:           users:all, user:{id}, roles:all
+Filières:        filieres:all, filiere:{id}, niveaux:filiere:{id}
+Cours:           cours:all, cours:niveau:{id}
+Professeurs:     professeurs:all, etudiants:all
+Années:          annee:active, semestre:actif
+Bulletins:       bulletin:etudiant:{id}:semestre:{id}
+Planning:        prof:{id}:planning:*, etudiant:{id}:planning:*
+Annonces:        annonces:global:page:{page}
+Documents:       documents:prof:{id}:*, documents:etudiant:{id}:*
+Messages:        user:{id}:messages:unread
+```
+
+### 2. LogService ✅
+
+Logging structuré pour audit trail complet.
+
+```php
+namespace App\Services;
+
+class LogService
+{
+    /**
+     * Enregistrer une action
+     */
+    public static function write(
+        ActionLog $action,
+        string $description,
+        ?Model $model,
+        ?array $oldData,
+        ?array $extraData
+    ): LogActivite
+
+    /**
+     * Exemples d'actions
+     */
+    // ActionLog::CREATE   - Création
+    // ActionLog::UPDATE   - Modification
+    // ActionLog::DELETE   - Suppression
+    // ActionLog::LOGIN    - Connexion
+    // ActionLog::LOGOUT   - Déconnexion
+    // ActionLog::VIEW     - Consultation
+    // ActionLog::EXPORT   - Export
+    // ActionLog::VALIDATE - Validation
+}
+```
+
+### 3. CalculAcademique ✅
+
+Calculs de moyennes et décisions académiques.
+
+```php
+namespace App\Services;
+
+class CalculAcademique
+{
+    /**
+     * Calculer la moyenne pondérée
+     */
+    public static function calculerMoyenne(
+        Collection $notes,
+        Collection $evaluations
+    ): float
+
+    /**
+     * Décision académique (Admis/Ajourné/Rattrapage)
+     */
+    public static function decisionBulletin(
+        float $moyenne,
+        ?string $decision = null
+    ): DecisionBulletin enum
+
+    /**
+     * Prédictions basées sur regroupement de notes
+     */
+    public static function predictionSession(
+        Collection $notes
+    ): array
+}
+```
+
+### 4. EmploiDuTempsService ✅
+
+Gestion du planning avec détection de conflits.
+
+```php
+namespace App\Services;
+
+class EmploiDuTempsService
+{
+    /**
+     * Créer une séance avec vérification conflits
+     */
+    public static function creerSeance(array $data): EmploiDuTemps
+
+    /**
+     * Détecter conflits (niveau, professeur, salle)
+     */
+    public static function trouverConflits(array $data): array
+
+    /**
+     * Chercher professeurs disponibles
+     */
+    public static function professeursDisponibles(
+        int $niveauId,
+        int $semestreId,
+        string $jour,
+        string $heureDebut,
+        string $heureFin
+    ): Collection
+
+    /**
+     * Chercher cours disponibles
+     */
+    public static function coursDisponibles(
+        int $professeurId,
+        int $niveauId,
+        int $semestreId
+    ): Collection
+
+    /**
+     * Vérifier disponibilité ressource
+     */
+    public static function ressourceDisponible(
+        string $type, // 'professeur', 'salle', 'niveau'
+        int $id,
+        string $jour,
+        string $heureDebut,
+        string $heureFin
+    ): bool
+}
+```
+
+### 5. EmploiDuTempsEtudiantService ✅
+
+Planning personnalisé pour étudiant.
+
+```php
+namespace App\Services;
+
+class EmploiDuTempsEtudiantService
+{
+    /**
+     * Planning complet de l'étudiant
+     */
+    public static function planningComplet(
+        Etudiant $etudiant,
+        ?Semestre $semestre = null
+    ): Collection
+
+    /**
+     * Planning de la semaine
+     */
+    public static function planningWeekly(
+        Etudiant $etudiant,
+        Carbon $startDate,
+        ?Semestre $semestre = null
+    ): Collection
+
+    /**
+     * Planning du jour
+     */
+    public static function planningJour(
+        Etudiant $etudiant,
+        Carbon $date,
+        ?Semestre $semestre = null
+    ): Collection
+
+    /**
+     * Résumé des cours
+     */
+    public static function resume(
+        Etudiant $etudiant,
+        ?Semestre $semestre = null
+    ): array
+
+    /**
+     * Prochains cours à venir
+     */
+    public static function prochains(
+        Etudiant $etudiant,
+        int $jours = 7,
+        ?Semestre $semestre = null
+    ): Collection
+}
+```
+
+### 6. PdfService ✅
+
+Génération de PDF (bulletins, documents).
+
+```php
+namespace App\Services;
+
+class PdfService
+{
+    /**
+     * Générer PDF bulletin
+     */
+    public static function genererBulletin(
+        Bulletin $bulletin
+    ): \Barryvdh\DomPDF\PDF
+
+    /**
+     * Télécharger ou sauvegarder
+     */
+    public static function telecharger()
+    public static function sauvegarder(string $path)
+    public static function afficherBrowser()
+}
+```
+
+### 7. DashboardService ✅
+
+Statistiques pour dashboard admin.
+
+```php
+namespace App\Services;
+
+class DashboardService
+{
+    /**
+     * Obtenir statistiques dashboard
+     */
+    public static function getStats(): array
+    // Retourne:
+    // - Total utilisateurs par rôle
+    // - Total étudiants par filière
+    // - Total cours actifs
+    // - Dernière activité (logs)
+    // - Statistiques par semestre
+}
+```
+
+### 8. ProfesseurDashboardService ✅
+
+Dashboard personnalisé pour professeur.
+
+```php
+namespace App\Services;
+
+class ProfesseurDashboardService
+{
+    /**
+     * Dashboard du professeur
+     */
+    public static function getDashboard(User $professeur): array
+    // Retourne:
+    // - Mes cours (nombre d'étudiants)
+    // - Évaluations en cours
+    // - Notes soumises vs validées
+    // - Prochains cours (5 prochains)
+    // - Heures d'enseignement
+}
+```
+
+---
+
+## 📋 Enums (Type Safety)
+
+### 14 Énumérations complètes ✅
+
+```php
+// Utilisateurs
+enum UserRole: string {
+    case ADMIN = 'admin';
+    case PROFESSEUR = 'professeur';
+    case ETUDIANT = 'etudiant';
+}
+
+// Sexe
+enum Sexe: string {
+    case MASCULIN = 'M';
+    case FEMININ = 'F';
+}
+
+// Statut étudiant
+enum StudentStatus: string {
+    case ACTIF = 'actif';
+    case SUSPENDU = 'suspendu';
+    case DIPLOME = 'diplome';
+}
+
+// Jour de semaine
+enum JourSemaine: string {
+    case LUNDI = 'lundi';
+    case MARDI = 'mardi';
+    case MERCREDI = 'mercredi';
+    case JEUDI = 'jeudi';
+    case VENDREDI = 'vendredi';
+    case SAMEDI = 'samedi';
+}
+
+// Semestre académique
+enum Semestre: int {
+    case S1 = 1;
+    case S2 = 2;
+}
+
+// Statut note
+enum StatutNote: string {
+    case BROUILLON = 'brouillon';
+    case SOUMISE = 'soumise';
+    case VALIDEE = 'validee';
+}
+
+// Décision bulletin
+enum DecisionBulletin: string {
+    case ADMIS = 'admis';
+    case AJOURNÉ = 'ajourné';
+    case RATTRAPAGE = 'rattrapage';
+}
+
+// Statut évaluation
+enum StatutEvaluation: string {
+    case PLANIFIEE = 'planifiee';
+    case EN_COURS = 'en_cours';
+    case TERMINNEE = 'terminee';
+}
+
+// Type évaluation
+enum TypeEvaluation: string {
+    case CC = 'cc';           // Contrôle continu
+    case EXAMEN = 'examen';
+    case PROJET = 'projet';
+    case TP = 'tp';
+}
+
+// Type annonce
+enum TypeAnnonce: string {
+    case INFO = 'info';
+    case ALERTE = 'alerte';
+    case IMPORTANT = 'important';
+}
+
+// Priorité annonce
+enum PrioriteAnnonce: int {
+    case BASSE = 1;
+    case NORMALE = 2;
+    case HAUTE = 3;
+}
+
+// Type document
+enum TypeDocument: string {
+    case NOTE = 'note';
+    case BULLETIN = 'bulletin';
+    case ATTESTATION = 'attestation';
+    case EMPLOI_DU_TEMPS = 'emploi_du_temps';
+}
+
+// Statut document
+enum StatutDocument: string {
+    case CREE = 'cree';
+    case ENVOYE = 'envoye';
+    case TELECHARGE = 'telecharge';
+    case ARCHIVE = 'archive';
+}
+
+// Type séance
+enum TypeSeance: string {
+    case COURS = 'cours';
+    case TP = 'tp';
+    case TD = 'td';
+    case EXAMEN = 'examen';
+}
+
+// Logs d'activité
+enum ActionLog: string {
+    case CREATE = 'create';
+    case UPDATE = 'update';
+    case DELETE = 'delete';
+    case LOGIN = 'login';
+    case LOGOUT = 'logout';
+    case VIEW = 'view';
+    case EXPORT = 'export';
+    case VALIDATE = 'validate';
+}
 ```
 
 ---
@@ -2101,7 +2996,20 @@ LOG_LEVEL=error
 
 ---
 
-**Dernière mise à jour :** 21 décembre 2025  
-**Version :** 0.3.0 - Architecture complète synchronisée  
-**Statut :** En développement actif 🚧  
+**Dernière mise à jour :** 30 décembre 2025  
+**Version :** 0.3.0 - Architecture complète avec Services, Notifications, Observers, Policies, FormRequests, Resources  
+**Statut :** Production-ready 🚀  
 **Contributeurs :** Mahamane-Korobara
+
+## 📞 Support & Documentation
+
+Pour toute question ou problème :
+1. Consulter la documentation complète dans ce README
+2. Vérifier les logs : `storage/logs/laravel.log`
+3. Vérifier les migrations : `php artisan migrate:status`
+4. Tester les endpoints avec Postman
+5. Consulter les sources des Controllers et Models
+
+## 📄 Licence
+
+Ce projet est licensié sous la Licence MIT. Voir le fichier `LICENSE` pour plus de détails.
