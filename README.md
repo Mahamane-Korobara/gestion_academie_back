@@ -3009,7 +3009,3 @@ Pour toute question ou problème :
 3. Vérifier les migrations : `php artisan migrate:status`
 4. Tester les endpoints avec Postman
 5. Consulter les sources des Controllers et Models
-
-## 📄 Licence
-
-Ce projet est licensié sous la Licence MIT. Voir le fichier `LICENSE` pour plus de détails.
