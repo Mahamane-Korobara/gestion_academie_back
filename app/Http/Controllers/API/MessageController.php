@@ -8,6 +8,7 @@ use App\Http\Requests\ReplyMessageRequest;
 use App\Http\Resources\MessageResource;
 use App\Models\Message;
 use App\Models\Cours;
+use App\Models\User;
 use App\Models\Etudiant;
 use App\Http\Requests\Professeur\StoreMessageMasseRequest;
 use App\Services\LogService;
@@ -50,6 +51,49 @@ class MessageController extends Controller
         return MessageResource::collection(
             $query->orderByDesc('created_at')->paginate(20)
         );
+    }
+
+    /**
+     * Récupérer la conversation complète avec un utilisateur
+     */
+    public function conversation(Request $request, $userId)
+    {
+        $currentUserId = $request->user()->id;
+        
+        // Valider que l'utilisateur existe
+        User::findOrFail($userId);
+        
+        // Récupérer tous les messages entre les deux utilisateurs
+        $messages = Message::with('expediteur', 'destinataire')
+            ->where(function($query) use ($currentUserId, $userId) {
+                // Messages envoyés par l'utilisateur actuel à l'autre
+                $query->where('expediteur_id', $currentUserId)
+                    ->where('destinataire_id', $userId);
+            })
+            ->orWhere(function($query) use ($currentUserId, $userId) {
+                // Messages reçus par l'utilisateur actuel de l'autre
+                $query->where('expediteur_id', $userId)
+                    ->where('destinataire_id', $currentUserId);
+            })
+            ->with('reponses.expediteur')
+            ->orderBy('created_at', 'asc')
+            ->get();
+        
+        // Marquer les messages reçus comme lus
+        Message::where('destinataire_id', $currentUserId)
+            ->where('expediteur_id', $userId)
+            ->where('is_lu', false)
+            ->update([
+                'is_lu' => true,
+                'date_lecture' => now()
+            ]);
+        
+        // Invalider le cache
+        $this->invalidateUnreadCache($currentUserId);
+        
+        return response()->json([
+            'data' => MessageResource::collection($messages)
+        ]);
     }
 
     /**
@@ -142,8 +186,12 @@ class MessageController extends Controller
         ];
         
         $reponse = Message::create($data);
-        
-        return new MessageResource($reponse->load('expediteur'));
+        $this->invalidateUnreadCache($data['destinataire_id']);
+    
+        return response()->json([
+            'message' => 'Réponse envoyée avec succès',
+            'data' => new MessageResource($reponse->load('expediteur', 'destinataire'))
+        ], 201);
     }
 
     public function storeMasse(StoreMessageMasseRequest $request): JsonResponse

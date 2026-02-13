@@ -266,6 +266,9 @@ Route::middleware([
     // Dashboard
     Route::get('/dashboard', [ProfesseurDashboardController::class, 'index']);
 
+    //Utilisateur - Annuaire
+    Route::get('/directory', [App\Http\Controllers\API\Professeur\UserController::class, 'directory']);
+
     // -------------------------------------------------------------------------
     // Gestion des Saisies de notes
     // -------------------------------------------------------------------------
@@ -283,11 +286,17 @@ Route::middleware([
     });
 
     Route::get('/cours', [ProfesseurCoursController::class, 'mesCours']);
+    Route::get('/form-options', [ProfesseurCoursController::class, 'getFormOptions']);
 
     // -------------------------------------------------------------------------
     // Gestion des annonces
     // -------------------------------------------------------------------------
     Route::get('/annonces', [AnnonceProfesseurController::class, 'index']);
+    Route::post('/annonces', [AnnonceProfesseurController::class, 'store']);
+    Route::get('/annonces/{annonce}', [AnnonceProfesseurController::class, 'show']);
+    Route::put('/annonces/{annonce}', [AnnonceProfesseurController::class, 'update']);
+    Route::delete('/annonces/{annonce}', [AnnonceProfesseurController::class, 'destroy']);
+    Route::post('/annonces/{annonce}/toggle-active', [AnnonceProfesseurController::class, 'toggleActive']);
 
     // -------------------------------------------------------------------------
     // Gestion des messages de masse
@@ -362,6 +371,8 @@ Route::middleware(['auth:sanctum', 'check.user.active', 'check.password.change']
     
     // Messagerie commune à tous les rôles
     Route::prefix('messages')->group(function () {
+         Route::get('/conversation/{userId}', [MessageController::class, 'conversation']);
+         Route::get('/sent', [MessageController::class, 'sent']);
         Route::get('/', [MessageController::class, 'index']); 
         Route::get('/unread-count', [MessageController::class, 'unreadCount']);
         Route::post('/', [MessageController::class, 'store']);

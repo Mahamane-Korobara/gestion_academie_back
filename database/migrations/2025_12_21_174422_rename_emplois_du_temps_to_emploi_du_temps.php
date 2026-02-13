@@ -9,7 +9,9 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
 
-        Schema::rename('emplois_du_temps', 'emploi_du_temps');
+        if (Schema::hasTable('emplois_du_temps') && !Schema::hasTable('emploi_du_temps')) {
+            Schema::rename('emplois_du_temps', 'emploi_du_temps');
+        }
 
         Schema::enableForeignKeyConstraints();
     }
@@ -18,8 +20,11 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
 
-        Schema::rename('emploi_du_temps', 'emplois_du_temps');
+        if (Schema::hasTable('emploi_du_temps') && !Schema::hasTable('emplois_du_temps')) {
+            Schema::rename('emploi_du_temps', 'emplois_du_temps');
+        }
 
         Schema::enableForeignKeyConstraints();
     }
+
 };

@@ -44,7 +44,7 @@ class UserResource extends JsonResource
                 'nom' => $this->etudiant->nom,
                 'prenom' => $this->etudiant->prenom,
                 'nom_complet' => $this->etudiant->nom_complet ?? ($this->etudiant->nom . ' ' . $this->etudiant->prenom),
-                'filiere' => $this->etudiant->filiere->nom,
+                'filiere' => $this->etudiant->filiere->code,
                 'niveau' => $this->etudiant->niveau->nom,
                 'statut' => $this->etudiant->statut->label(),
             ];
