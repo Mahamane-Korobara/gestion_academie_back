@@ -16,40 +16,21 @@ class CreateSemestreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'annee_academique_id' => [
-                'required',
-                'exists:annees_academiques,id'
-            ],
+            'annee_academique_id' => ['required', 'exists:annees_academiques,id'],
 
             'numero' => [
                 'required',
-                Rule::in(['S1','S2']),
+                Rule::in(['S1', 'S2']),
             ],
 
-            'date_debut' => [
-                'required',
-                'date'
-            ],
+            'date_debut' => ['required', 'date'],
+            'date_fin'   => ['required', 'date', 'after:date_debut'],
 
-            'date_fin' => [
-                'required',
-                'date',
-                'after:date_debut'
-            ],
+            // ✅ Dates d'examens obligatoires et saisies manuellement par l'admin
+            'date_debut_examens' => ['required', 'date'],
+            'date_fin_examens'   => ['required', 'date', 'after_or_equal:date_debut_examens'],
 
-            'date_debut_examens' => [
-                'nullable',
-                'date'
-            ],
-
-            'date_fin_examens' => [
-                'nullable',
-                'date'
-            ],
-
-            'is_active' => [
-                'boolean'
-            ],
+            'is_active' => ['boolean'],
         ];
     }
 
@@ -57,28 +38,23 @@ class CreateSemestreRequest extends FormRequest
     {
         return [
             'annee_academique_id.required' => 'L\'année académique est obligatoire.',
-            'annee_academique_id.exists' => 'L\'année académique sélectionnée n\'existe pas.',
-
-            'numero.required' => 'Le numéro du semestre est obligatoire.',
-            'numero.in' => 'Le semestre doit être S1 ou S2.',
-
-            'date_debut.required' => 'La date de début est obligatoire.',
-            'date_debut.date' => 'La date de début est invalide.',
-            'date_fin.required' => 'La date de fin est obligatoire.',
-            'date_fin.after' => 'La date de fin doit être après la date de début.',
-
-            'date_debut_examens.date' => 'La date de début des examens est invalide.',
-            'date_fin_examens.date' => 'La date de fin des examens est invalide.',
-
-            'is_active.boolean' => 'Le champ is_active doit être un booléen (true ou false).',
+            'annee_academique_id.exists'   => 'L\'année académique sélectionnée n\'existe pas.',
+            'numero.required'              => 'Le numéro du semestre est obligatoire.',
+            'numero.in'                    => 'Le semestre doit être S1 ou S2.',
+            'date_debut.required'          => 'La date de début est obligatoire.',
+            'date_fin.required'            => 'La date de fin est obligatoire.',
+            'date_fin.after'               => 'La date de fin doit être après la date de début.',
+            'date_debut_examens.required'  => 'La date de début des examens est obligatoire.',
+            'date_fin_examens.required'    => 'La date de fin des examens est obligatoire.',
+            'date_fin_examens.after_or_equal' => 'La date de fin des examens doit être après ou égale à la date de début des examens.',
         ];
     }
 
-    public function withValidator($validator)
+    public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
 
-            // Vérification doublon année + semestre
+            // Doublon : même semestre pour la même année
             if ($this->filled('annee_academique_id') && $this->filled('numero')) {
                 $exists = Semestre::where('annee_academique_id', $this->annee_academique_id)
                     ->where('numero', $this->numero)
@@ -89,28 +65,23 @@ class CreateSemestreRequest extends FormRequest
                 }
             }
 
-            // Validation des dates d'examens 
+            // Les examens doivent être dans la période du semestre
+            if ($this->filled(['date_debut', 'date_fin', 'date_debut_examens', 'date_fin_examens'])) {
+                $debutSemestre = $this->date_debut;
+                $finSemestre   = $this->date_fin;
 
-            // Vérifie cohérence début exam < fin exam
-            if ($this->filled('date_debut_examens') && $this->filled('date_fin_examens')) {
-                if ($this->date_debut_examens > $this->date_fin_examens) {
-                    $validator->errors()->add('date_debut_examens',
-                        'La date de début des examens doit être avant la date de fin des examens.');
+                if ($this->date_debut_examens < $debutSemestre || $this->date_debut_examens > $finSemestre) {
+                    $validator->errors()->add(
+                        'date_debut_examens',
+                        'La date de début des examens doit être comprise dans la période du semestre.'
+                    );
                 }
-            }
 
-            // Vérifie que les examens sont dans la période du semestre
-            if ($this->filled('date_debut_examens')) {
-                if ($this->date_debut_examens < $this->date_debut || $this->date_debut_examens > $this->date_fin) {
-                    $validator->errors()->add('date_debut_examens',
-                        'La date de début des examens doit être comprise dans la période du semestre.');
-                }
-            }
-
-            if ($this->filled('date_fin_examens')) {
-                if ($this->date_fin_examens < $this->date_debut || $this->date_fin_examens > $this->date_fin) {
-                    $validator->errors()->add('date_fin_examens',
-                        'La date de fin des examens doit être comprise dans la période du semestre.');
+                if ($this->date_fin_examens < $debutSemestre || $this->date_fin_examens > $finSemestre) {
+                    $validator->errors()->add(
+                        'date_fin_examens',
+                        'La date de fin des examens doit être comprise dans la période du semestre.'
+                    );
                 }
             }
         });

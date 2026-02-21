@@ -81,4 +81,12 @@ class Cours extends Model
     {
         return $query->where('is_active', true);
     }
+
+    // Ajoute ceci dans modèle pour faciliter les requêtes
+    public function scopeDeLAnneeActive($query)
+    {
+        return $query->whereHas('anneeAcademique', function($q) {
+            $q->where('is_active', true);
+        });
+    }
 }

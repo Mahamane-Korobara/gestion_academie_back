@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateCoursRequest;
 use App\Http\Resources\Admin\CoursResource;
 use App\Models\Cours;
+use App\Models\AnneeAcademique;
 use App\Services\CacheService;
 use App\Services\LogService;
 use App\Enums\ActionLog;
@@ -22,29 +23,24 @@ class CoursController extends Controller
     {
         $niveauId = $request->get('niveau_id');
         $semestreId = $request->get('semestre_id');
+        //On doit filtrer par l'année active par défaut
+        $anneeId = $request->get('annee_academique_id') ?? AnneeAcademique::where('is_active', true)->value('id');
         $page = $request->get('page', 1);
 
-        $cacheKey = sprintf('cours:list:niveau:%s:semestre:%s:page:%s', 
-            $niveauId ?? 'all', 
-            $semestreId ?? 'all',
-            $page
+        // On ajoute l'année dans la clé de cache
+        $cacheKey = sprintf('cours:list:annee:%s:niv:%s:sem:%s:pg:%s', 
+            $anneeId, $niveauId ?? 'all', $semestreId ?? 'all', $page
         );
 
-        return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($niveauId, $semestreId) {
-            $query = Cours::with(['niveau.filiere', 'professeurs'])
-                ->withCount('inscriptions');
+        return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($niveauId, $semestreId, $anneeId) {
+            $query = Cours::with(['niveau.filiere', 'professeurs', 'semestre'])
+                ->withCount('inscriptions')
+                ->where('annee_academique_id', $anneeId); // Filtrage par année
 
-            if ($niveauId) {
-                $query->where('niveau_id', $niveauId);
-            }
+            if ($niveauId) $query->where('niveau_id', $niveauId);
+            if ($semestreId) $query->where('semestre_id', $semestreId);
 
-            if ($semestreId) {
-                $query->where('semestre_id', $semestreId);
-            }
-
-            $cours = $query->latest()->get();
-
-            return CoursResource::collection($cours);
+            return CoursResource::collection($query->latest()->get());
         });
     }
 
@@ -69,7 +65,7 @@ class CoursController extends Controller
             // --- LOG SERVICE ---
             LogService::write(
                 ActionLog::CREATE,
-                "Création du cours : {$cours->nom} (Code: {$cours->code})",
+                "Création du cours : {$cours->titre} (Code: {$cours->code})",
                 $cours,
                 null,
                 $cours->toArray()

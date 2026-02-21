@@ -44,8 +44,8 @@ class CreateEvaluationRequest extends FormRequest
                 // Vérifier que la date est dans la période du semestre
                 $semestre = Semestre::find($this->semestre_id);
                 $dateEval = Carbon::parse($this->date_evaluation);
-                if ($dateEval->lt($semestre->date_debut) || $dateEval->gt($semestre->date_fin)) {
-                    $validator->errors()->add('date_evaluation', 'La date doit être dans la période du semestre.');
+                if ($dateEval->lt($semestre->date_debut_examens) || $dateEval->gt($semestre->date_fin_examens)) {
+                    $validator->errors()->add('date_evaluation', 'L\'examen doit être planifié durant la période d\'examens du semestre.');
                 }
 
             }

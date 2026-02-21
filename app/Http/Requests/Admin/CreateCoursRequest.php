@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CreateCoursRequest extends FormRequest
 {
@@ -15,7 +16,12 @@ class CreateCoursRequest extends FormRequest
     {
         return [
             'titre' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', 'unique:cours,code'],
+            'code' => [
+                'required', 
+                'string', 
+                'max:50',
+                Rule::unique('cours')->where('annee_academique_id', $this->annee_academique_id)
+            ],
             'description' => ['nullable', 'string'],
             'coefficient' => ['required', 'numeric', 'min:0.5', 'max:10'],
             'nombre_heures' => ['nullable', 'integer', 'min:1'],

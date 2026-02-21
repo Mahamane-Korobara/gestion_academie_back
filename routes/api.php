@@ -153,7 +153,7 @@ Route::middleware([
         // Actions spécifiques
         Route::post('/{anneeAcademique}/activate', [AnneeAcademiqueController::class, 'activate']);
         Route::post('/{anneeAcademique}/close', [AnneeAcademiqueController::class, 'close']);
-        Route::post('/{anneeAcademique}/create-semestres', [AnneeAcademiqueController::class, 'createSemestres']);
+        // Route::post('/{anneeAcademique}/create-semestres', [AnneeAcademiqueController::class, 'createSemestres']);
     });
 
     // -------------------------------------------------------------------------

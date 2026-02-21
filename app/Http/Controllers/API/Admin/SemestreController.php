@@ -16,17 +16,12 @@ use Illuminate\Support\Facades\DB;
 
 class SemestreController extends Controller
 {
-    /**
-     * Liste des semestres d'une année académique
-     */
     public function index(Request $request)
     {
         $anneeId = $request->get('annee_academique_id');
 
         if (!$anneeId) {
-            return response()->json([
-                'message' => 'Le paramètre annee_academique_id est requis',
-            ], 422);
+            return response()->json(['message' => 'Le paramètre annee_academique_id est requis'], 422);
         }
 
         $cacheKey = "semestres:annee:{$anneeId}";
@@ -42,9 +37,6 @@ class SemestreController extends Controller
         });
     }
 
-    /**
-     * Semestre actif
-     */
     public function active()
     {
         $cacheKey = 'semestre:actif';
@@ -56,19 +48,13 @@ class SemestreController extends Controller
                 ->first();
 
             if (!$semestre) {
-                return response()->json([
-                    'message' => 'Aucun semestre actif',
-                    'data' => null,
-                ], 404);
+                return response()->json(['message' => 'Aucun semestre actif', 'data' => null], 404);
             }
 
             return new SemestreResource($semestre);
         });
     }
 
-    /**
-     * Détails d'un semestre
-     */
     public function show(Semestre $semestre)
     {
         $semestre->load('anneeAcademique')
@@ -77,33 +63,36 @@ class SemestreController extends Controller
         return new SemestreResource($semestre);
     }
 
-    /**
-     * Créer un semestre
-     */
     public function store(CreateSemestreRequest $request)
     {
         try {
             return DB::transaction(function () use ($request) {
+
+                // Si ce semestre est activé, désactiver les autres de la même année
+                if ($request->boolean('is_active')) {
+                    Semestre::deactivateAllInAnnee($request->annee_academique_id);
+                }
+
                 $semestre = Semestre::create($request->validated());
 
-                // --- LOG SERVICE ---
                 LogService::write(
                     ActionLog::CREATE,
-                    "Création du semestre : {$semestre->libelle} (Numéro: {$semestre->numero})",
+                    "Création du semestre {$semestre->numero->value} pour l'année #{$semestre->annee_academique_id}",
                     $semestre,
                     null,
                     $semestre->toArray()
                 );
 
-                // Invalider les caches
                 CacheService::forget([
                     'semestre:actif',
-                    "semestres:annee:{$request->annee_academique_id}",
-                    CacheService::KEYS['stats_dashboard']
+                    "semestres:annee:{$semestre->annee_academique_id}",
+                    'annees_academiques:all',          // ← ajouter
+                    'annee_academique:active',         // ← ajouter
+                    CacheService::KEYS['stats_dashboard'],
                 ]);
 
                 return response()->json([
-                    'message' => 'Semestre créé avec succès',
+                    'message'  => 'Semestre créé avec succès',
                     'semestre' => new SemestreResource($semestre->load('anneeAcademique')),
                 ], 201);
             });
@@ -112,38 +101,36 @@ class SemestreController extends Controller
         }
     }
 
-    /**
-     * Mettre à jour un semestre
-     */
     public function update(UpdateSemestreRequest $request, Semestre $semestre)
     {
         try {
             return DB::transaction(function () use ($request, $semestre) {
                 $oldValues = $semestre->toArray();
 
-                if ($request->has('is_active') && $request->is_active) {
+                if ($request->has('is_active') && $request->boolean('is_active')) {
                     Semestre::deactivateAllInAnnee($semestre->annee_academique_id);
                 }
 
                 $semestre->update($request->validated());
 
-                // --- LOG SERVICE ---
                 LogService::write(
                     ActionLog::UPDATE,
-                    "Mise à jour du semestre : {$semestre->libelle}",
+                    "Mise à jour du semestre {$semestre->numero->value}",
                     $semestre,
                     $oldValues,
                     $semestre->fresh()->toArray()
                 );
 
-                // Invalider les caches
                 CacheService::forget([
                     'semestre:actif',
                     "semestres:annee:{$semestre->annee_academique_id}",
+                    'annees_academiques:all',        
+                    'annee_academique:active',        
+                    CacheService::KEYS['stats_dashboard'],
                 ]);
 
                 return response()->json([
-                    'message' => 'Semestre mis à jour avec succès',
+                    'message'  => 'Semestre mis à jour avec succès',
                     'semestre' => new SemestreResource($semestre->load('anneeAcademique')),
                 ]);
             });
@@ -152,22 +139,18 @@ class SemestreController extends Controller
         }
     }
 
-    /**
-     * Activer un semestre
-     */
     public function activate(Semestre $semestre)
     {
         try {
             return DB::transaction(function () use ($semestre) {
                 $oldStatus = $semestre->is_active;
-                
+
                 Semestre::deactivateAllInAnnee($semestre->annee_academique_id);
                 $semestre->update(['is_active' => true]);
 
-                // --- LOG SERVICE ---
                 LogService::write(
                     ActionLog::UPDATE,
-                    "Activation manuelle du semestre : {$semestre->libelle}",
+                    "Activation du semestre {$semestre->numero->value}",
                     $semestre,
                     ['is_active' => $oldStatus],
                     ['is_active' => true]
@@ -176,11 +159,13 @@ class SemestreController extends Controller
                 CacheService::forget([
                     'semestre:actif',
                     "semestres:annee:{$semestre->annee_academique_id}",
-                    CacheService::KEYS['stats_dashboard']
+                    'annees_academiques:all',          
+                    'annee_academique:active',         
+                    CacheService::KEYS['stats_dashboard'],
                 ]);
 
                 return response()->json([
-                    'message' => 'Semestre activé avec succès',
+                    'message'  => 'Semestre activé avec succès',
                     'semestre' => new SemestreResource($semestre->load('anneeAcademique')),
                 ]);
             });
@@ -189,36 +174,29 @@ class SemestreController extends Controller
         }
     }
 
-    /**
-     * Supprimer un semestre
-     */
     public function destroy(Semestre $semestre)
     {
         if ($semestre->inscriptions()->exists()) {
             return response()->json([
-                'message' => 'Impossible de supprimer un semestre avec des inscriptions actives',
+                'message'            => 'Impossible de supprimer un semestre avec des inscriptions actives',
                 'inscriptions_count' => $semestre->inscriptions()->count(),
             ], 422);
         }
 
         if ($semestre->is_active) {
-            return response()->json([
-                'message' => 'Impossible de supprimer le semestre actuellement actif',
-            ], 422);
+            return response()->json(['message' => 'Impossible de supprimer le semestre actuellement actif'], 422);
         }
 
         try {
             return DB::transaction(function () use ($semestre) {
                 $anneeId = $semestre->annee_academique_id;
-                $libelle = $semestre->libelle;
-                $oldData = $semestre->toArray();
+                $numero  = $semestre->numero->value;
 
-                // --- LOG SERVICE ---
                 LogService::write(
                     ActionLog::DELETE,
-                    "Suppression du semestre : {$libelle}",
+                    "Suppression du semestre {$numero}",
                     $semestre,
-                    $oldData
+                    $semestre->toArray()
                 );
 
                 $semestre->delete();
@@ -226,12 +204,12 @@ class SemestreController extends Controller
                 CacheService::forget([
                     'semestre:actif',
                     "semestres:annee:{$anneeId}",
-                    CacheService::KEYS['stats_dashboard']
+                    'annees_academiques:all',          
+                    'annee_academique:active',         
+                    CacheService::KEYS['stats_dashboard'],
                 ]);
 
-                return response()->json([
-                    'message' => 'Semestre supprimé avec succès',
-                ]);
+                return response()->json(['message' => 'Semestre supprimé avec succès']);
             });
         } catch (\Exception $e) {
             return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
