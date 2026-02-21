@@ -74,7 +74,8 @@ class EmploiDuTempsProfesseurController extends Controller
                 $query->where('jour', $jour);
             }
 
-            return $query->sortBy(fn($e) => $e->jour->numero())
+            return $query
+                ->orderByRaw("FIELD(jour, 'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche')")
                 ->orderBy('heure_debut')
                 ->get();
         });

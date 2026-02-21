@@ -13,21 +13,23 @@ class AdminSeeder extends Seeder
         // Récupérer l'ID du rôle admin
         $roleAdminId = DB::table('roles')->where('name', 'admin')->first()->id;
 
-        // Créer l'utilisateur administrateur
-        $userId = DB::table('users')->insertGetId([
-            'role_id' => $roleAdminId,
-            'name' => 'Administrateur Système',
-            'email' => 'admin@gestion-academique.ml',
-            'phone' => '0550000000',
-            'password' => Hash::make('admin123456'), // Mot de passe par défaut
-            'is_active' => true,
-            'must_change_password' => false, // L'admin n'a pas besoin de changer son mot de passe
-            'email_verified_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Creer ou mettre a jour l utilisateur administrateur
+        DB::table('users')->updateOrInsert(
+            ['email' => 'admin@gestion-academique.ml'],
+            [
+                'role_id' => $roleAdminId,
+                'name' => 'Administrateur Systeme',
+                'phone' => '0550000000',
+                'password' => Hash::make('admin123456'),
+                'is_active' => true,
+                'must_change_password' => false,
+                'email_verified_at' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
 
-        $this->command->info(' Administrateur créé avec succès !');
+        $this->command->info('Administrateur seede avec succes');
         $this->command->info('');
         $this->command->warn('═══════════════════════════════════════════════════════');
         $this->command->warn('   INFORMATIONS DE CONNEXION ADMINISTRATEUR');
@@ -39,4 +41,3 @@ class AdminSeeder extends Seeder
         $this->command->error(' IMPORTANT : Change ce mot de passe en production !');
     }
 }
-

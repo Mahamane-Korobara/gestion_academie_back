@@ -33,8 +33,12 @@ class RoleSeeder extends Seeder
             ],
         ];
 
-        DB::table('roles')->insert($roles);
+        DB::table('roles')->upsert(
+            $roles,
+            ['name'],
+            ['display_name', 'description', 'updated_at']
+        );
 
-        $this->command->info('3 rôles créés avec succès');
+        $this->command->info('Roles seedes avec succes');
     }
 }

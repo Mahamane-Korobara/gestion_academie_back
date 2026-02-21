@@ -35,7 +35,7 @@ class EmploiDuTempsResource extends JsonResource
                     'id'          => $this->professeur->id,
                     'nom' => $this->professeur->nom,
                     'prenom' => $this->professeur->prenom,
-                    'nom_complet' => $this->professeur->user->nom . ' ' . $this->professeur->user->prenom,
+                    'nom_complet' => $this->professeur->user->name ?? ($this->professeur->prenom . ' ' . $this->professeur->nom),
                     'specialite'  => $this->professeur->specialite,
                 ];
             }),
@@ -63,7 +63,7 @@ class EmploiDuTempsResource extends JsonResource
             'annee_academique' => $this->whenLoaded('anneeAcademique', function () {
                 return [
                     'id' => $this->anneeAcademique->id,
-                    'nom' => $this->anneeAcademique->nom,
+                    'nom' => $this->anneeAcademique->annee,
                     'is_active' => $this->anneeAcademique->is_active,
                 ];
             }),

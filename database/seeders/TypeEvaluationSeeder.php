@@ -52,8 +52,12 @@ class TypeEvaluationSeeder extends Seeder
             ],
         ];
 
-        DB::table('types_evaluations')->insert($types);
+        DB::table('types_evaluations')->upsert(
+            $types,
+            ['code'],
+            ['nom', 'coefficient_defaut', 'description', 'updated_at']
+        );
 
-        $this->command->info('5 types d\'évaluation créés avec succès');
+        $this->command->info('Types d evaluation seedes avec succes');
     }
 }

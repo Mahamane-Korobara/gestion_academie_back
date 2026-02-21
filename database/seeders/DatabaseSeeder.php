@@ -12,6 +12,12 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             TypeEvaluationSeeder::class,
             AdminSeeder::class,
+            FilieresMasterSeeder::class,
+            NiveauxMasterSeeder::class,
+            ProfesseursEtudiantsSeeder::class,
+            CoursMasterSeeder::class,
+            InscriptionsMasterSeeder::class,
+            EmploiDuTempsMasterSeeder::class,
         ]);
     }
 }
