@@ -198,17 +198,30 @@ class DashboardService
 
     private function getEtudiantsParNiveau($anneeId, $semestreId, $filiereId, $niveauId)
     {
-        $query = Niveau::withCount(['etudiants' => function($q) use ($anneeId, $filiereId) {
-            if ($anneeId) $q->where('etudiants.annee_academique_id', $anneeId);
-            if ($filiereId) $q->where('filiere_id', $filiereId);
-        }]);
+        $query = Niveau::query()
+            ->select('id', 'nom', 'filiere_id')
+            ->withCount(['etudiants as etudiants_count' => function ($q) use ($anneeId) {
+                if ($anneeId) {
+                    $q->where('etudiants.annee_academique_id', $anneeId);
+                }
+            }]);
+
+        if ($filiereId) {
+            $query->where('filiere_id', $filiereId);
+        }
 
         if ($niveauId) {
             $query->where('id', $niveauId);
         }
 
-        return $query->orderBy('nom')
-            ->pluck('etudiants_count', 'nom');
+        $rows = $query->get();
+
+        // Agréger par nom de niveau (M1/M2) au lieu d’écraser
+        return $rows
+            ->groupBy('nom')
+            ->map(fn ($group) => (int) $group->sum('etudiants_count'))
+            ->sortKeys()
+            ->toArray();
     }
 
     private function getProfesseursCharges($anneeId, $semestreId, $filiereId, $niveauId)

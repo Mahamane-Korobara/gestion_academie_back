@@ -19,7 +19,11 @@ class UpdateAnneeAcademiqueRequest extends FormRequest
                 'sometimes',
                 'string',
                 'regex:/^\d{4}-\d{4}$/',
-                Rule::unique('annees_academiques')->ignore($this->route('annee_academique'))
+                Rule::unique('annees_academiques', 'annee')->ignore(
+                    $this->route('anneeAcademique')?->id
+                    ?? $this->route('annee_academique')?->id
+                    ?? $this->route('annee_academique')
+                ),
             ],
 
             // Validation robuste si l’un existe l’autre doit être valide

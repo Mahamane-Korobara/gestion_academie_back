@@ -49,13 +49,20 @@ class UserController extends Controller
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
             $users = $query->latest()->paginate($perPage);
 
-            return UserResource::collection($users);
+            return UserResource::collection($users)->additional([
+                'meta' => [
+                    'counts' => [
+                        'etudiant'   => User::whereHas('role', fn($q) => $q->where('name', 'etudiant'))->count(),
+                        'professeur' => User::whereHas('role', fn($q) => $q->where('name', 'professeur'))->count(),
+                    ]
+                ]
+            ]);
         });
     }
 
@@ -240,8 +247,8 @@ class UserController extends Controller
                 }
 
                 return response()->json([
-                    'message' => $user->is_active 
-                        ? 'Compte réactivé. Un nouveau mot de passe a été envoyé.' 
+                    'message' => $user->is_active
+                        ? 'Compte réactivé. Un nouveau mot de passe a été envoyé.'
                         : 'Compte désactivé avec succès.',
                     'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
                 ]);
