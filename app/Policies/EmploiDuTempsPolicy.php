@@ -16,9 +16,17 @@ class EmploiDuTempsPolicy
     }
 
     /**
-     * Un professeur peut consulter uniquement SON emploi du temps
+     * Un professeur peut consulter son emploi du temps
      */
-    public function viewProfesseur(User $user, EmploiDuTemps $emploi): bool
+    public function viewProfesseur(User $user): bool
+    {
+        return $user->isProfesseur();
+    }
+
+    /**
+     * Un professeur peut consulter un emploi du temps spécifique uniquement s'il lui appartient
+     */
+    public function view(User $user, EmploiDuTemps $emploi): bool
     {
         return $user->isProfesseur() && $user->professeur->id === $emploi->professeur_id;
     }

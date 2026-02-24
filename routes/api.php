@@ -278,6 +278,7 @@ Route::middleware([
     // Gestion des emplois du temps
     // -------------------------------------------------------------------------
     Route::prefix('emploi-du-temps')->group(function () {
+        Route::get('/semestres-disponibles', [EmploiDuTempsProfesseurController::class, 'semestresDisponibles']);
         Route::get('/', [EmploiDuTempsProfesseurController::class, 'index']);
         Route::get('/semaine', [EmploiDuTempsProfesseurController::class, 'semaine']);
         Route::get('/jour', [EmploiDuTempsProfesseurController::class, 'jour']);

@@ -17,13 +17,15 @@ class EmploiDuTempsProfesseurController extends Controller
     use AuthorizesRequests;
 
     /**
-     * Vue globale : Tous les cours du professeur (tous niveaux)
+     * Vue globale : Tous les cours du professeur (tous semestres)
      * 
      * GET /api/professeur/emploi-du-temps
      * Query params optionnels :
+     *   - semestre_id : filtrer par semestre
      *   - niveau_id : filtrer par niveau
+     *   - filiere_id : filtrer par filière
+     *   - cours_id : filtrer par cours
      *   - jour : filtrer par jour (Lundi, Mardi, etc.)
-     *   - semestre_id : voir un autre semestre (par défaut = actif)
      */
     public function index(Request $request)
     {
@@ -31,70 +33,109 @@ class EmploiDuTempsProfesseurController extends Controller
 
         $professeur = $request->user()->professeur;
 
-        // Récupérer le semestre (actif par défaut, ou spécifié)
+        // Récupérer les filtres optionnels
         $semestreId = $request->get('semestre_id');
-        
-        if ($semestreId) {
-            $semestre = Semestre::find($semestreId);
-        } else {
-            $semestre = Semestre::where('is_active', true)->first();
-        }
-
-        if (!$semestre) {
-            return response()->json([
-                'message' => 'Aucun semestre actif ou spécifié.',
-            ], 404);
-        }
-
-        // Filtres
         $niveauId = $request->get('niveau_id');
+        $filiereId = $request->get('filiere_id');
+        $coursId = $request->get('cours_id');
         $jour = $request->get('jour');
 
-        // Clé de cache avec CacheService
-        $cacheKey = CacheService::key(
-            'prof_planning',
-            $professeur->id,
-            $semestre->id,
-            $niveauId ?? 'all',
-            $jour ?? 'all'
-        );
+        // Construire la requête de base
+        $query = EmploiDuTemps::where('professeur_id', $professeur->id)
+            ->with(['cours', 'niveau.filiere', 'salle', 'semestre.anneeAcademique']);
 
-        $emplois = Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($professeur, $semestre, $niveauId, $jour) {
-            $query = EmploiDuTemps::where('professeur_id', $professeur->id)
-                ->where('semestre_id', $semestre->id)
-                ->with(['cours', 'niveau', 'salle']);
+        // Appliquer les filtres
+        if ($semestreId) {
+            $query->where('semestre_id', $semestreId);
+        }
 
-            // Filtre par niveau
-            if ($niveauId) {
-                $query->where('niveau_id', $niveauId);
-            }
+        if ($niveauId) {
+            $query->where('niveau_id', $niveauId);
+        }
 
-            // Filtre par jour
-            if ($jour) {
-                $query->where('jour', $jour);
-            }
+        if ($filiereId) {
+            $query->whereHas('niveau', function ($q) use ($filiereId) {
+                $q->where('filiere_id', $filiereId);
+            });
+        }
 
-            return $query
-                ->orderByRaw("FIELD(jour, 'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche')")
-                ->orderBy('heure_debut')
-                ->get();
-        });
+        if ($coursId) {
+            $query->where('cours_id', $coursId);
+        }
 
-        // Retourner les données et métadonnées utiles pour le front
+        if ($jour) {
+            $query->where('jour', $jour);
+        }
+
+        $emplois = $query
+            ->orderByRaw("FIELD(jour, 'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche')")
+            ->orderBy('heure_debut')
+            ->get();
+
+        // Grouper par semestre pour la réponse
+        $emploisGroupes = $emplois->groupBy(function ($emploi) {
+            return $emploi->semestre_id;
+        })->map(function ($group) {
+            $semestre = $group->first()->semestre;
+            return [
+                'semestre' => [
+                    'id' => $semestre->id,
+                    'numero' => $semestre->numero->value,
+                    'label' => $semestre->numero->label(),
+                    'date_debut' => $semestre->date_debut->format('Y-m-d'),
+                    'date_fin' => $semestre->date_fin->format('Y-m-d'),
+                    'annee' => $semestre->anneeAcademique?->annee ?? 'N/A',
+                ],
+                'emplois' => EmploiDuTempsResource::collection($group),
+            ];
+        })->values();
+
         return response()->json([
-            'semestre' => [
+            'filtres_appliques' => [
+                'semestre_id' => $semestreId,
+                'niveau_id' => $niveauId,
+                'filiere_id' => $filiereId,
+                'cours_id' => $coursId,
+                'jour' => $jour,
+            ],
+            'total_cours' => $emplois->count(),
+            'semestres' => $emploisGroupes,
+        ]);
+    }
+
+    /**
+     * Liste des semestres où le professeur enseigne
+     * 
+     * GET /api/professeur/emploi-du-temps/semestres-disponibles
+     */
+    public function semestresDisponibles(Request $request)
+    {
+        $professeur = $request->user()->professeur;
+
+        $semestres = Semestre::whereIn('id', function ($query) use ($professeur) {
+            $query->select('semestre_id')
+                ->from('emploi_du_temps')
+                ->where('professeur_id', $professeur->id)
+                ->distinct();
+        })
+        ->with('anneeAcademique')
+        ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function ($semestre) {
+            return [
                 'id' => $semestre->id,
                 'numero' => $semestre->numero->value,
                 'label' => $semestre->numero->label(),
                 'date_debut' => $semestre->date_debut->format('Y-m-d'),
                 'date_fin' => $semestre->date_fin->format('Y-m-d'),
-            ],
-            'filtres_appliques' => [
-                'niveau_id' => $niveauId,
-                'jour' => $jour,
-            ],
-            'total_cours' => $emplois->count(),
-            'emplois' => EmploiDuTempsResource::collection($emplois),
+                'is_active' => $semestre->is_active,
+                'annee' => $semestre->anneeAcademique->annee,
+            ];
+        });
+
+        return response()->json([
+            'semestres' => $semestres,
+            'total' => $semestres->count(),
         ]);
     }
 
