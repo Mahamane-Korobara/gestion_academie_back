@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Contrôleurs Auth
-use App\Http\Controllers\API\AuthController;
+use App\Http\Controllers\API\Auth\AuthController;
 
 // Contrôleurs Admin
 use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
@@ -35,8 +35,8 @@ use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
 
 // Contrôleurs Communs
 use App\Http\Controllers\API\MessageController;
-use App\Http\Controllers\API\Professeur\DocumentController;
-use App\Http\Controllers\API\Etudiant\DocumentEtudiantController;
+use App\Http\Controllers\API\DocumentController;
+// use App\Http\Controllers\API\Etudiant\DocumentEtudiantController; // TODO: créer ce contrôleur
 
 // ============================================================================
 // ROUTES PUBLIQUES
@@ -356,8 +356,9 @@ Route::middleware([
     // -------------------------------------------------------------------------
     // Documents partagés au niveau étudiant
     // -------------------------------------------------------------------------
-    Route::prefix('documents')->group(function () {
-        Route::get('/', [DocumentEtudiantController::class, 'index']);
-        Route::get('/{document}/download', [DocumentEtudiantController::class, 'download']);
-    });
+    // TODO: implémenter les routes documents pour les étudiants
+    // Route::prefix('documents')->group(function () {
+    //     Route::get('/', [DocumentEtudiantController::class, 'index']);
+    //     Route::get('/{document}/download', [DocumentEtudiantController::class, 'download']);
+    // });
 });
