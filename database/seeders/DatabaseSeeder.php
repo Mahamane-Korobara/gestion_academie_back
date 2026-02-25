@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             NiveauxMasterSeeder::class,
             ProfesseursEtudiantsSeeder::class,
             CoursMasterSeeder::class,
+            EvaluationsMasterSeeder::class,
             InscriptionsMasterSeeder::class,
             EmploiDuTempsMasterSeeder::class,
         ]);

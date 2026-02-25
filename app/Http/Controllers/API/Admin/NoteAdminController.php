@@ -10,6 +10,7 @@ use App\Services\CalculAcademique;
 use App\Services\CacheService;
 use App\Services\LogService;
 use App\Enums\ActionLog;
+use App\Enums\StatutNote;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -30,7 +31,7 @@ class NoteAdminController extends Controller
         // Autorisation via Policy
         $this->authorize('validerNotes', $note);
 
-        if ($note->statut === 'validee') {
+        if ($note->statut === StatutNote::VALIDEE) {
             return response()->json([
                 'message' => 'Note déjà validée'
             ], 422);
@@ -41,7 +42,7 @@ class NoteAdminController extends Controller
         DB::transaction(function () use ($note, $request, $oldValues) {
             // Validation de la note
             $note->update([
-                'statut' => 'validee',
+                'statut' => StatutNote::VALIDEE->value,
                 'valide_par' => $request->user()->id,
                 'date_validation' => now(),
             ]);
@@ -67,12 +68,17 @@ class NoteAdminController extends Controller
         CacheService::forgetBulletins($note->etudiant_id);
         // Invalider les listes de notes en attente
         CacheService::forget('notes:en_attente:*');
-        // Après validation d'une note
-        CacheService::forget("etudiant_dashboard_{$note->etudiant_id}");
+        // Dashboard étudiant concerné
+        CacheService::forget("etudiant:dashboard:{$note->etudiant_id}");
 
         return response()->json([
             'message' => 'Note validée avec succès',
-            'note' => $note->only(['id', 'etudiant_id', 'note', 'statut']),
+            'note' => [
+                'id' => $note->id,
+                'etudiant_id' => $note->etudiant_id,
+                'note' => $note->note,
+                'statut' => $note->statut instanceof StatutNote ? $note->statut->value : $note->statut,
+            ],
         ]);
     }
 
@@ -95,7 +101,7 @@ class NoteAdminController extends Controller
         $cacheKey = "notes:en_attente:page:{$page}:filters:{$filters}";
 
         $notes = Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($request, $perPage) {
-            $query = Note::whereIn('statut', ['brouillon', 'soumise'])
+            $query = Note::whereIn('statut', [StatutNote::BROUILLON->value, StatutNote::SOUMISE->value])
                 ->with([
                     'etudiant.user',
                     'evaluation.cours',
@@ -136,7 +142,7 @@ class NoteAdminController extends Controller
         $now = now();
 
         $notesAValider = Note::whereIn('id', $request->note_ids)
-            ->whereIn('statut', ['brouillon', 'soumise'])
+            ->whereIn('statut', [StatutNote::BROUILLON->value, StatutNote::SOUMISE->value])
             ->get();
 
         if ($notesAValider->isEmpty()) {
@@ -145,9 +151,9 @@ class NoteAdminController extends Controller
 
         DB::transaction(function () use ($request, $userId, $now, $notesAValider) {
             Note::whereIn('id', $request->note_ids)
-                ->whereIn('statut', ['brouillon', 'soumise'])
+                ->whereIn('statut', [StatutNote::BROUILLON->value, StatutNote::SOUMISE->value])
                 ->update([
-                    'statut' => 'validee',
+                    'statut' => StatutNote::VALIDEE->value,
                     'valide_par' => $userId,
                     'date_validation' => $now,
                 ]);
@@ -158,11 +164,12 @@ class NoteAdminController extends Controller
                 "Validation en masse de " . $notesAValider->count() . " notes par l'administrateur.",
                 null, // Pas de modèle unique pour une action de masse
                 ['note_ids' => $request->note_ids],
-                ['statut' => 'validee']
+                ['statut' => StatutNote::VALIDEE->value]
             );
         });
 
         $dejaCalcule = [];
+        $etudiantIds = [];
 
         foreach ($notesAValider->load(['etudiant', 'evaluation.semestre']) as $note) {
             $key = $note->etudiant_id . '_' . $note->evaluation->semestre_id;
@@ -179,11 +186,13 @@ class NoteAdminController extends Controller
 
             CacheService::forgetBulletins($note->etudiant_id);
             $dejaCalcule[$key] = true;
+            $etudiantIds[$note->etudiant_id] = true;
         }
 
         CacheService::forget('notes:en_attente:*');
-        // Après validation d'une note
-        CacheService::forget("etudiant_dashboard_{$note->etudiant_id}");
+        foreach (array_keys($etudiantIds) as $etudiantId) {
+            CacheService::forget("etudiant:dashboard:{$etudiantId}");
+        }
 
         return NoteResource::collection($notesAValider->fresh());
     }

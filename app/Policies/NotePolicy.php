@@ -14,7 +14,7 @@ class NotePolicy
     }
 
     // Pour valider une note
-    public function validerNotes(User $user, Note $note): bool
+    public function validerNotes(User $user, ?Note $note = null): bool
     {
         return $user->isAdmin();
     }

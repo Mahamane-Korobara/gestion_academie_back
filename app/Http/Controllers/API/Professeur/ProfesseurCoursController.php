@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\API\Professeur;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Admin\EvaluationResource;
 use App\Models\Cours;
+use App\Models\Evaluation;
+use App\Models\Inscription;
+use App\Enums\StatutNote;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +32,7 @@ class ProfesseurCoursController extends Controller
             $coursCollection = Cours::whereHas('professeurs', function ($q) use ($professeur) {
                 $q->where('professeurs.id', $professeur->id);
             })
-            ->with(['niveau.filiere']) 
+            ->with(['niveau.filiere'])
             ->get();
 
             $formattedCours = $coursCollection->map(function ($cours) {
@@ -115,5 +119,81 @@ class ProfesseurCoursController extends Controller
         });
 
         return response()->json($data);
+    }
+
+    /**
+     * Lister les évaluations des cours du professeur connecté
+     *
+     * Filtres optionnels:
+     * - semestre_id
+     * - filiere_id
+     * - niveau_id
+     * - cours_id
+     * - type_evaluation_id
+     * - statut
+     */
+    public function mesEvaluations(Request $request)
+    {
+        $professeur = $request->user()->professeur;
+
+        if (!$professeur) {
+            return response()->json(['message' => 'Profil professeur introuvable.'], 403);
+        }
+
+        $query = Evaluation::query()
+            ->select('evaluations.*')
+            ->selectSub(
+                Inscription::query()
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('inscriptions.cours_id', 'evaluations.cours_id'),
+                'inscriptions_count'
+            )
+            ->whereHas('cours.professeurs', function ($q) use ($professeur) {
+                $q->where('professeurs.id', $professeur->id);
+            })
+            ->with([
+                'cours.niveau.filiere',
+                'typeEvaluation',
+                'semestre.anneeAcademique',
+                'salle',
+            ])
+            ->withCount('notes')
+            ->withCount([
+                'notes as notes_validees_count' => function ($q) {
+                    $q->where('statut', StatutNote::VALIDEE->value);
+                },
+            ])
+            ->orderBy('date_evaluation')
+            ->orderBy('heure_debut');
+
+        if ($request->filled('semestre_id')) {
+            $query->where('semestre_id', $request->integer('semestre_id'));
+        }
+
+        if ($request->filled('cours_id')) {
+            $query->where('cours_id', $request->integer('cours_id'));
+        }
+
+        if ($request->filled('type_evaluation_id')) {
+            $query->where('type_evaluation_id', $request->integer('type_evaluation_id'));
+        }
+
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->string('statut'));
+        }
+
+        if ($request->filled('niveau_id')) {
+            $query->whereHas('cours', function ($q) use ($request) {
+                $q->where('niveau_id', $request->integer('niveau_id'));
+            });
+        }
+
+        if ($request->filled('filiere_id')) {
+            $query->whereHas('cours.niveau', function ($q) use ($request) {
+                $q->where('filiere_id', $request->integer('filiere_id'));
+            });
+        }
+
+        return EvaluationResource::collection($query->get());
     }
 }

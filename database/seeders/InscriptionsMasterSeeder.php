@@ -21,13 +21,22 @@ class InscriptionsMasterSeeder extends Seeder
             return;
         }
 
+        $this->command?->info("Total etudiants a inscrire: {$etudiants->count()}");
+
         $count = 0;
+        $etudiantsNonInscrits = [];
 
         foreach ($etudiants as $etudiant) {
             $coursDuNiveau = Cours::query()
                 ->where('niveau_id', $etudiant->niveau_id)
                 ->where('annee_academique_id', $etudiant->annee_academique_id)
+                ->where('is_active', true)
                 ->get();
+
+            if ($coursDuNiveau->isEmpty()) {
+                $etudiantsNonInscrits[] = "{$etudiant->prenom} {$etudiant->nom} (niveau_id: {$etudiant->niveau_id})";
+                continue;
+            }
 
             foreach ($coursDuNiveau as $cours) {
                 Inscription::updateOrCreate(
@@ -46,6 +55,13 @@ class InscriptionsMasterSeeder extends Seeder
             }
         }
 
-        $this->command?->info("Inscriptions seedees: {$count}");
+        if (!empty($etudiantsNonInscrits)) {
+            $this->command?->warn("Etudiants NON inscrits (pas de cours pour leur niveau): " . count($etudiantsNonInscrits));
+            foreach (array_slice($etudiantsNonInscrits, 0, 5) as $msg) {
+                $this->command?->warn("  - $msg");
+            }
+        }
+
+        $this->command?->info("Inscriptions seedees: {$count} inscription(s) creees.");
     }
 }

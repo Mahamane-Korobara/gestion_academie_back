@@ -1,73 +1,82 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\API\Auth\AuthController;
-use App\Http\Controllers\API\Admin\UserController;
+
+// Contrôleurs Auth
+use App\Http\Controllers\API\AuthController;
+
+// Contrôleurs Admin
+use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
+use App\Http\Controllers\API\Admin\SemestreController;
 use App\Http\Controllers\API\Admin\FiliereController;
 use App\Http\Controllers\API\Admin\NiveauController;
 use App\Http\Controllers\API\Admin\CoursController;
-use App\Http\Controllers\API\Admin\DashboardController;
-use App\Http\Controllers\API\Admin\AnneeAcademiqueController;
-use App\Http\Controllers\API\Admin\SemestreController;
+use App\Http\Controllers\API\Admin\AffectationController;
+use App\Http\Controllers\API\Admin\UserController;
 use App\Http\Controllers\API\Admin\InscriptionController;
 use App\Http\Controllers\API\Admin\EvaluationController;
 use App\Http\Controllers\API\Admin\NoteAdminController;
-use App\Http\Controllers\API\Admin\AffectationController;
 use App\Http\Controllers\API\Admin\BulletinController;
+use App\Http\Controllers\API\Admin\DashboardController;
+use App\Http\Controllers\API\Professeur\ProfesseurCoursController;
 use App\Http\Controllers\API\Admin\EmploiDuTempsAdminController;
 use App\Http\Controllers\API\Admin\AnnonceController;
+
+// Contrôleurs Professeur
+use App\Http\Controllers\API\Professeur\ProfesseurDashboardController;
 use App\Http\Controllers\API\Professeur\NoteController;
 use App\Http\Controllers\API\Professeur\EmploiDuTempsProfesseurController;
 use App\Http\Controllers\API\Professeur\AnnonceProfesseurController;
-use App\Http\Controllers\API\Professeur\ProfesseurCoursController;
-use App\Http\Controllers\API\Professeur\ProfesseurDashboardController;
-use App\Http\Controllers\API\Etudiant\EtudiantController;
-use App\Http\Controllers\API\Etudiant\BulletinEtudiantController;
-use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
-use App\Http\Controllers\API\Etudiant\AnnonceEtudiantController;
-use App\Http\Controllers\API\MessageController;
-use App\Http\Controllers\API\DocumentController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
+// Contrôleurs Étudiant
+use App\Http\Controllers\API\Etudiant\EtudiantController;
+use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
+
+// Contrôleurs Communs
+use App\Http\Controllers\API\MessageController;
+use App\Http\Controllers\API\Professeur\DocumentController;
+use App\Http\Controllers\API\Etudiant\DocumentEtudiantController;
 
 // ============================================================================
 // ROUTES PUBLIQUES
 // ============================================================================
-Route::prefix('auth')->group(function () {
-    // Login avec rate limiting (3 tentatives par minute)
-    Route::middleware(['throttle:3,1'])->group(function () {
-        Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login']);
+
+// ============================================================================
+// ROUTES AUTHENTIFIÉES (TOUS RÔLES)
+// ============================================================================
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/logout-all', [AuthController::class, 'logoutAll']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
+
+    // Changement obligatoire de mot de passe
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
+
+    // Sessions actives
+    Route::get('/auth/sessions', [AuthController::class, 'sessions']);
+    Route::delete('/auth/sessions/{tokenId}', [AuthController::class, 'revokeSession']);
+
+    // Profil utilisateur
+    Route::post('/auth/update-profile', [AuthController::class, 'updateProfile']);
+
+    // Messagerie commune
+    Route::prefix('messages')->group(function () {
+        Route::get('/', [MessageController::class, 'index']);
+        Route::get('/sent', [MessageController::class, 'sent']);
+        Route::get('/conversation/{user}', [MessageController::class, 'conversation']);
+        Route::get('/unread-count', [MessageController::class, 'unreadCount']);
+        Route::post('/', [MessageController::class, 'store']);
+        Route::post('/{message}/reply', [MessageController::class, 'reply']);
+        Route::post('/{message}/mark-as-read', [MessageController::class, 'markAsRead']);
+        Route::get('/{message}', [MessageController::class, 'show']);
+        Route::delete('/{message}', [MessageController::class, 'destroy']);
     });
 });
 
 // ============================================================================
-// ROUTES AUTHENTIFIÉES (tous les utilisateurs connectés)
-// ============================================================================
-Route::middleware(['auth:sanctum', 'check.user.active'])->prefix('auth')->group(function () {
-    // Informations utilisateur
-    Route::get('/me', [AuthController::class, 'me']);
-    
-    // Déconnexion
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/logout-all', [AuthController::class, 'logoutAll']);
-    
-    // Changement de mot de passe (accessible même si must_change_password = true)
-    Route::post('/change-password', [AuthController::class, 'changePassword']);
-    
-    // Routes nécessitant un mot de passe changé
-    Route::middleware('check.password.change')->group(function () {
-        Route::post('/update-profile', [AuthController::class, 'updateProfile']);
-        Route::get('/sessions', [AuthController::class, 'activeSessions']);
-        Route::delete('/sessions/{tokenId}', [AuthController::class, 'revokeSession']);
-    });
-});
-
-// ============================================================================
-// ROUTES ADMINISTRATEUR
+// ROUTES ADMIN
 // ============================================================================
 Route::middleware([
     'auth:sanctum',
@@ -76,100 +85,87 @@ Route::middleware([
     'check.password.change'
 ])->prefix('admin')->group(function () {
 
+    // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // -------------------------------------------------------------------------
-    // Gestion des utilisateurs
-    // -------------------------------------------------------------------------
-    Route::prefix('users')->group(function () {
-        Route::get('/', [UserController::class, 'index']);
-        Route::post('/', [UserController::class, 'store']);
-        Route::get('/{user}', [UserController::class, 'show']);
-        Route::put('/{user}', [UserController::class, 'update']);
-        Route::patch('/{user}', [UserController::class, 'update']);
-        Route::delete('/{user}', [UserController::class, 'destroy']);
-        
-        // Actions spécifiques
-        Route::post('/{user}/reset-password', [UserController::class, 'resetPassword']);
-        Route::post('/{user}/toggle-active', [UserController::class, 'toggleActive']);
-    });
-
-    // -------------------------------------------------------------------------
-    // Gestion des filières
-    // -------------------------------------------------------------------------
-    Route::prefix('filieres')->group(function () {
-        Route::get('/', [FiliereController::class, 'index']);
-        Route::post('/', [FiliereController::class, 'store']);
-        Route::get('/{filiere}', [FiliereController::class, 'show']);
-        Route::put('/{filiere}', [FiliereController::class, 'update']);
-        Route::patch('/{filiere}', [FiliereController::class, 'update']);
-        Route::delete('/{filiere}', [FiliereController::class, 'destroy']);
-        
-        // Création automatique des niveaux
-        Route::post('/{filiere}/create-standard-levels', [NiveauController::class, 'createStandardLevels']);
-    });
-
-    // -------------------------------------------------------------------------
-    // Gestion des niveaux
-    // -------------------------------------------------------------------------
-    Route::prefix('niveaux')->group(function () {
-        Route::get('/all', [NiveauController::class, 'all']); // Tous les niveaux
-        Route::get('/', [NiveauController::class, 'index']); // Par filière
-        Route::post('/', [NiveauController::class, 'store']);
-        Route::get('/{niveau}', [NiveauController::class, 'show']);
-        Route::put('/{niveau}', [NiveauController::class, 'update']);
-        Route::patch('/{niveau}', [NiveauController::class, 'update']);
-        Route::delete('/{niveau}', [NiveauController::class, 'destroy']);
-    });
-
-    // -------------------------------------------------------------------------
-    // Gestion des cours
-    // -------------------------------------------------------------------------
-    Route::prefix('cours')->group(function () {
-        Route::get('/', [CoursController::class, 'index']);
-        Route::post('/', [CoursController::class, 'store']);
-        Route::get('/{cours}', [CoursController::class, 'show']);
-        Route::put('/{cours}', [CoursController::class, 'update']);
-        Route::patch('/{cours}', [CoursController::class, 'update']);
-        Route::delete('/{cours}', [CoursController::class, 'destroy']);
-
-        // Affectation professeurs =< cours
-        Route::post('/{cours}/affecter-professeurs', [AffectationController::class, 'affecterProfesseurs']);
-        Route::delete('/{cours}/professeurs/{professeur}', [AffectationController::class, 'retirerProfesseur']);
-    });
-
-    // -------------------------------------------------------------------------
-    // Gestion des années académiques
+    // Gestion des Années Académiques
     // -------------------------------------------------------------------------
     Route::prefix('annees-academiques')->group(function () {
         Route::get('/', [AnneeAcademiqueController::class, 'index']);
-        Route::get('/active', [AnneeAcademiqueController::class, 'active']);
         Route::post('/', [AnneeAcademiqueController::class, 'store']);
+        Route::get('/active', [AnneeAcademiqueController::class, 'active']);
         Route::get('/{anneeAcademique}', [AnneeAcademiqueController::class, 'show']);
         Route::put('/{anneeAcademique}', [AnneeAcademiqueController::class, 'update']);
-        Route::patch('/{anneeAcademique}', [AnneeAcademiqueController::class, 'update']);
         Route::delete('/{anneeAcademique}', [AnneeAcademiqueController::class, 'destroy']);
-        
-        // Actions spécifiques
         Route::post('/{anneeAcademique}/activate', [AnneeAcademiqueController::class, 'activate']);
         Route::post('/{anneeAcademique}/close', [AnneeAcademiqueController::class, 'close']);
         // Route::post('/{anneeAcademique}/create-semestres', [AnneeAcademiqueController::class, 'createSemestres']);
     });
 
     // -------------------------------------------------------------------------
-    // Gestion des semestres
+    // Gestion des Semestres
     // -------------------------------------------------------------------------
     Route::prefix('semestres')->group(function () {
-        Route::get('/active', [SemestreController::class, 'active']);
-        Route::get('/', [SemestreController::class, 'index']); // Avec annee_academique_id
+        Route::get('/', [SemestreController::class, 'index']);
         Route::post('/', [SemestreController::class, 'store']);
+        Route::get('/active', [SemestreController::class, 'active']);
         Route::get('/{semestre}', [SemestreController::class, 'show']);
         Route::put('/{semestre}', [SemestreController::class, 'update']);
-        Route::patch('/{semestre}', [SemestreController::class, 'update']);
         Route::delete('/{semestre}', [SemestreController::class, 'destroy']);
-        
-        // Actions spécifiques
         Route::post('/{semestre}/activate', [SemestreController::class, 'activate']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des Filières
+    // -------------------------------------------------------------------------
+    Route::prefix('filieres')->group(function () {
+        Route::get('/', [FiliereController::class, 'index']);
+        Route::post('/', [FiliereController::class, 'store']);
+        Route::get('/{filiere}', [FiliereController::class, 'show']);
+        Route::put('/{filiere}', [FiliereController::class, 'update']);
+        Route::delete('/{filiere}', [FiliereController::class, 'destroy']);
+        Route::post('/{filiere}/create-standard-levels', [FiliereController::class, 'createStandardLevels']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des Niveaux
+    // -------------------------------------------------------------------------
+    Route::prefix('niveaux')->group(function () {
+        Route::get('/', [NiveauController::class, 'index']); // paginé + filtres
+        Route::get('/all', [NiveauController::class, 'all']); // non paginé
+        Route::post('/', [NiveauController::class, 'store']);
+        Route::get('/{niveau}', [NiveauController::class, 'show']);
+        Route::put('/{niveau}', [NiveauController::class, 'update']);
+        Route::delete('/{niveau}', [NiveauController::class, 'destroy']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des Cours
+    // -------------------------------------------------------------------------
+    Route::prefix('cours')->group(function () {
+        Route::get('/', [CoursController::class, 'index']);
+        Route::post('/', [CoursController::class, 'store']);
+        Route::get('/{cours}', [CoursController::class, 'show']);
+        Route::put('/{cours}', [CoursController::class, 'update']);
+        Route::delete('/{cours}', [CoursController::class, 'destroy']);
+
+        // Affectation des professeurs
+        Route::post('/{cours}/affecter-professeurs', [AffectationController::class, 'affecterProfesseurs']);
+        Route::delete('/{cours}/professeurs/{professeur}', [AffectationController::class, 'retirerProfesseur']);
+    });
+
+    // -------------------------------------------------------------------------
+    // Gestion des Utilisateurs (admin / professeurs / étudiants)
+    // -------------------------------------------------------------------------
+    Route::prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index']);
+        Route::post('/', [UserController::class, 'store']);
+        Route::get('/{user}', [UserController::class, 'show']);
+        Route::put('/{user}', [UserController::class, 'update']);
+        Route::delete('/{user}', [UserController::class, 'destroy']);
+        Route::post('/{user}/toggle-active', [UserController::class, 'toggleActive']);
+        Route::post('/{user}/reset-password', [UserController::class, 'resetPassword']);
     });
 
     // -------------------------------------------------------------------------
@@ -179,12 +175,12 @@ Route::middleware([
         Route::get('/', [InscriptionController::class, 'index']);
         Route::post('/', [InscriptionController::class, 'store']);
         Route::post('/masse', [InscriptionController::class, 'inscriptionMasse']);
-        Route::get('/etudiant/{etudiantId}', [InscriptionController::class, 'parEtudiant']);
-        Route::get('/cours/{coursId}', [InscriptionController::class, 'parCours']);
+        Route::get('/etudiant/{etudiant}', [InscriptionController::class, 'inscriptionsEtudiant']);
+        Route::get('/cours/{cours}', [InscriptionController::class, 'inscriptionsCours']);
         Route::delete('/{inscription}', [InscriptionController::class, 'destroy']);
     });
 
-    // Inscription automatique par étudiant
+    // Endpoint rapide inscription d'un étudiant à tout un niveau
     Route::post('/etudiants/{etudiant}/inscrire-cours-niveau', [InscriptionController::class, 'inscrireCoursNiveau']);
 
     // -------------------------------------------------------------------------
@@ -272,6 +268,7 @@ Route::middleware([
     // -------------------------------------------------------------------------
     // Gestion des Saisies de notes
     // -------------------------------------------------------------------------
+    Route::get('/evaluations/{evaluation}/notes', [NoteController::class, 'show']);
     Route::post('/evaluations/{evaluation}/notes', [NoteController::class, 'store']);
 
     // -------------------------------------------------------------------------
@@ -287,6 +284,7 @@ Route::middleware([
     });
 
     Route::get('/cours', [ProfesseurCoursController::class, 'mesCours']);
+    Route::get('/evaluations', [ProfesseurCoursController::class, 'mesEvaluations']);
     Route::get('/form-options', [ProfesseurCoursController::class, 'getFormOptions']);
 
     // -------------------------------------------------------------------------
@@ -337,49 +335,29 @@ Route::middleware([
     Route::get('/cours', [EtudiantController::class, 'cours']);
 
     // Téléchargement PDF d'un bulletin
-    Route::get('/bulletins/{bulletinId}/pdf', [BulletinEtudiantController::class, 'telechargerPDF']);
-    
+    Route::get('/bulletins/{bulletin}/pdf', [EtudiantController::class, 'downloadBulletin']);
+
     // -------------------------------------------------------------------------
-    // Gestion des emplois du temps
+    // Emploi du temps étudiant
     // -------------------------------------------------------------------------
     Route::prefix('emploi-du-temps')->group(function () {
         Route::get('/', [EmploiDuTempsEtudiantController::class, 'index']);
         Route::get('/semaine', [EmploiDuTempsEtudiantController::class, 'semaine']);
         Route::get('/jour', [EmploiDuTempsEtudiantController::class, 'jour']);
         Route::get('/resume', [EmploiDuTempsEtudiantController::class, 'resume']);
-        Route::get('/prochains', [EmploiDuTempsEtudiantController::class, 'prochains']);
+        Route::get('/prochains', [EmploiDuTempsEtudiantController::class, 'prochainsCours']);
     });
 
     // -------------------------------------------------------------------------
-    // Gestion des annonces
+    // Annonces visibles pour l'étudiant
     // -------------------------------------------------------------------------
-    Route::get('/annonces', [AnnonceEtudiantController::class, 'index']);
+    Route::get('/annonces', [EtudiantController::class, 'annonces']);
 
     // -------------------------------------------------------------------------
-    // Gestion des documents
+    // Documents partagés au niveau étudiant
     // -------------------------------------------------------------------------
     Route::prefix('documents')->group(function () {
-    Route::get('/', [DocumentController::class, 'index']);      // Liste avec filtres
-    Route::get('/{document}/download', [DocumentController::class, 'download']); // Télécharger
-});
-
-});
-
-// ============================================================================
-// ROUTES AUTHENTIFIÉES communes à tous les rôles
-// ============================================================================
-Route::middleware(['auth:sanctum', 'check.user.active', 'check.password.change'])->group(function () {
-    
-    // Messagerie commune à tous les rôles
-    Route::prefix('messages')->group(function () {
-         Route::get('/conversation/{userId}', [MessageController::class, 'conversation']);
-         Route::get('/sent', [MessageController::class, 'sent']);
-        Route::get('/', [MessageController::class, 'index']); 
-        Route::get('/unread-count', [MessageController::class, 'unreadCount']);
-        Route::post('/', [MessageController::class, 'store']);
-        Route::get('/{message}', [MessageController::class, 'show']);
-        Route::post('/{id}/reply', [MessageController::class, 'reply']);
-        Route::post('/{message}/mark-as-read', [MessageController::class, 'markAsRead']);
-        Route::delete('/{message}', [MessageController::class, 'destroy']);
+        Route::get('/', [DocumentEtudiantController::class, 'index']);
+        Route::get('/{document}/download', [DocumentEtudiantController::class, 'download']);
     });
 });
