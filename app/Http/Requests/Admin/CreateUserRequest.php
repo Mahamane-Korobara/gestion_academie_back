@@ -44,7 +44,15 @@ class CreateUserRequest extends FormRequest
             'etudiant.date_naissance' => ['required_with:etudiant', 'date'],
             'etudiant.sexe' => ['required_with:etudiant', 'in:M,F'],
             'etudiant.filiere_id' => ['required_with:etudiant', 'exists:filieres,id'],
-            'etudiant.niveau_id' => ['required_with:etudiant', 'exists:niveaux,id'],
+            'etudiant.niveau_id' => [
+                'required_with:etudiant',
+                Rule::exists('niveaux', 'id')->where(function ($query) {
+                    $filiereId = $this->input('etudiant.filiere_id');
+                    if ($filiereId) {
+                        $query->where('filiere_id', $filiereId);
+                    }
+                }),
+            ],
             'etudiant.lieu_naissance' => ['nullable', 'string'],
             'etudiant.adresse' => ['nullable', 'string'],
             'etudiant.email_personnel' => ['nullable', 'email'],
@@ -84,6 +92,7 @@ class CreateUserRequest extends FormRequest
             'etudiant.sexe.required_with' => 'Le sexe est obligatoire',
             'etudiant.filiere_id.required_with' => 'La filière est obligatoire',
             'etudiant.niveau_id.required_with' => 'Le niveau est obligatoire',
+            'etudiant.niveau_id.exists' => 'Le niveau sélectionné n\'appartient pas à la filière choisie',
             
             'professeur.required_if' => 'Les informations du professeur sont obligatoires',
             'professeur.code_professeur.required_with' => 'Le code professeur est obligatoire',

@@ -8,6 +8,8 @@ use App\Http\Resources\Admin\UserResource;
 use App\Models\User;
 use App\Models\Etudiant;
 use App\Models\Professeur;
+use App\Models\Cours;
+use App\Models\Inscription;
 use App\Models\AnneeAcademique;
 use App\Services\CacheService;
 use App\Services\LogService;
@@ -16,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use App\Notifications\UserCredentialsSent;
 use Illuminate\Support\Str;
 
@@ -85,7 +88,11 @@ class UserController extends Controller
     public function store(CreateUserRequest $request)
     {
         try {
-            return DB::transaction(function () use ($request) {
+            $user = null;
+            $temporaryPassword = null;
+            $autoInscriptionsCount = 0;
+
+            DB::transaction(function () use ($request, &$user, &$temporaryPassword, &$autoInscriptionsCount) {
                 $userData = $request->only(['role_id', 'name', 'email', 'phone']);
                 $isEtudiantOuProf = $request->filled('etudiant') || $request->filled('professeur');
 
@@ -107,21 +114,26 @@ class UserController extends Controller
                         throw new \Exception('Aucune année académique active définie.');
                     }
 
-                    Etudiant::create([
+                    $etudiant = Etudiant::create([
                         'user_id' => $user->id,
                         'annee_academique_id' => $anneeActive->id,
                         'date_inscription' => now(),
                         ...$request->etudiant,
                     ]);
+
+                    $autoInscriptionsCount = $this->inscrireEtudiantAuxCoursDeSonNiveau($etudiant);
                 }
 
                 // Profil professeur
                 if ($request->filled('professeur')) {
+                    $profData = $request->professeur;
+
                     Professeur::create([
                         'user_id' => $user->id,
-                        'email_professionnel' => $user->email,
-                        'telephone' => $user->phone,
-                        ...$request->professeur,
+                        'email_professionnel' => $profData['email_professionnel'] ?? $user->email,
+                        // La colonne peut être non nullable selon l'état réel de la BDD.
+                        'telephone' => $profData['telephone'] ?? $user->phone ?? 'Non renseigne',
+                        ...$profData,
                     ]);
                 }
 
@@ -135,19 +147,72 @@ class UserController extends Controller
                 );
 
                 CacheService::forgetUsers();
-
-                if ($isEtudiantOuProf) {
-                    $user->notify(new UserCredentialsSent($temporaryPassword));
-                }
-
-                return response()->json([
-                    'message' => 'Utilisateur créé avec succès',
-                    'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
-                ], 201);
             });
+
+            $isEtudiantOuProf = $request->filled('etudiant') || $request->filled('professeur');
+
+            // Ne jamais faire échouer la création utilisateur à cause du mail.
+            if ($isEtudiantOuProf && $user && $temporaryPassword) {
+                try {
+                    $user->notify(new UserCredentialsSent($temporaryPassword));
+                } catch (\Throwable $notifyError) {
+                    Log::warning('Notification credentials non envoyée après création utilisateur.', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'error' => $notifyError->getMessage(),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'message' => 'Utilisateur créé avec succès',
+                'cours_inscrits_auto' => $autoInscriptionsCount,
+                'user' => new UserResource($user->load(['role', 'etudiant', 'professeur'])),
+            ], 201);
+
         } catch (\Exception $e) {
+            Log::error('Erreur création utilisateur', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json(['message' => 'Erreur', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Inscrit automatiquement l'étudiant à tous les cours actifs de son niveau
+     * pour son année académique (si les cours ont un semestre défini).
+     */
+    private function inscrireEtudiantAuxCoursDeSonNiveau(Etudiant $etudiant): int
+    {
+        $coursDuNiveau = Cours::query()
+            ->where('niveau_id', $etudiant->niveau_id)
+            ->where('annee_academique_id', $etudiant->annee_academique_id)
+            ->where('is_active', true)
+            ->whereNotNull('semestre_id')
+            ->get(['id', 'semestre_id', 'annee_academique_id']);
+
+        if ($coursDuNiveau->isEmpty()) {
+            return 0;
+        }
+
+        $now = now();
+        $inscriptions = $coursDuNiveau->map(function (Cours $cours) use ($etudiant, $now) {
+            return [
+                'etudiant_id' => $etudiant->id,
+                'cours_id' => $cours->id,
+                'semestre_id' => $cours->semestre_id,
+                'annee_academique_id' => $cours->annee_academique_id,
+                'date_inscription' => $now->toDateString(),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        })->all();
+
+        Inscription::insertOrIgnore($inscriptions);
+
+        return count($inscriptions);
     }
 
     /**
@@ -242,7 +307,16 @@ class UserController extends Controller
                             'password' => Hash::make($newPassword),
                             'must_change_password' => true,
                         ]);
-                        $user->notify(new UserCredentialsSent($newPassword, isReactivation: true));
+
+                        try {
+                            $user->notify(new UserCredentialsSent($newPassword, isReactivation: true));
+                        } catch (\Throwable $notifyError) {
+                            Log::warning('Notification credentials non envoyée après réactivation.', [
+                                'user_id' => $user->id,
+                                'email' => $user->email,
+                                'error' => $notifyError->getMessage(),
+                            ]);
+                        }
                     }
                 }
 
