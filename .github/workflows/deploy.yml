@@ -1,0 +1,21 @@
+name: Deploy Gestion Academique
+
+on:
+  push:
+    branches: [main] # S'exécute dès que tu push sur la branche main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # On pointe vers le script spécifique de Gestion Académique
+          script: |
+            chmod +x /var/www/gestion-academique/deploy.sh
+            /var/www/gestion-academique/deploy.sh
+          debug: true
