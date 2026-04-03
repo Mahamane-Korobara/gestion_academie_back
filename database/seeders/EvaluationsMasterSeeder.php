@@ -8,18 +8,17 @@ use App\Models\TypeEvaluation;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class EvaluationsMasterSeeder extends Seeder
 {
     public function run(): void
     {
         $types = TypeEvaluation::query()
-            ->whereIn('code', ['CC', 'EF', 'TP', 'PROJ', 'RATT'])
+            ->whereIn('code', ['EF'])
             ->get()
             ->keyBy('code');
 
-        $codesManquants = collect(['CC', 'EF', 'TP', 'PROJ', 'RATT'])
+        $codesManquants = collect(['EF'])
             ->reject(fn (string $code) => $types->has($code))
             ->values();
 
@@ -57,7 +56,6 @@ class EvaluationsMasterSeeder extends Seeder
                         $cours->semestre->date_fin?->copy(),
                         $cours->semestre->date_debut_examens?->copy(),
                         $cours->semestre->date_fin_examens?->copy(),
-                        $row['type_code'],
                         (int) $cours->id
                     );
 
@@ -95,135 +93,16 @@ class EvaluationsMasterSeeder extends Seeder
      */
     private function buildPlanForCours(string $titreCours, string $codeCours): array
     {
-        $normalized = Str::lower(Str::ascii($titreCours . ' ' . $codeCours));
-
-        if ($this->isMemoireLike($normalized)) {
-            return [
-                [
-                    'type_code' => 'PROJ',
-                    'titre' => 'Memoire / dossier professionnel',
-                    'coefficient' => 0.60,
-                    'heure_debut' => '09:00',
-                    'heure_fin' => '12:00',
-                    'instructions' => 'Depot du document final et soutenance technique/professionnelle.',
-                ],
-                [
-                    'type_code' => 'EF',
-                    'titre' => 'Soutenance finale',
-                    'coefficient' => 0.40,
-                    'heure_debut' => '14:00',
-                    'heure_fin' => '17:00',
-                    'instructions' => 'Presentation orale devant jury (15 min expose + questions/reponses).',
-                ],
-                [
-                    'type_code' => 'RATT',
-                    'titre' => 'Session de rattrapage',
-                    'coefficient' => 1.00,
-                    'heure_debut' => '09:00',
-                    'heure_fin' => '11:00',
-                    'instructions' => 'Session de rattrapage reservee aux etudiants non valides en session normale.',
-                ],
-            ];
-        }
-
-        if ($this->isPratiqueLike($normalized)) {
-            return [
-                [
-                    'type_code' => 'CC',
-                    'titre' => 'Controle continu',
-                    'coefficient' => 0.30,
-                    'heure_debut' => '08:00',
-                    'heure_fin' => '10:00',
-                    'instructions' => 'Epreuve ecrite courte sur les chapitres traites.',
-                ],
-                [
-                    'type_code' => 'TP',
-                    'titre' => 'Travaux pratiques / etude de cas',
-                    'coefficient' => 0.20,
-                    'heure_debut' => '14:00',
-                    'heure_fin' => '17:00',
-                    'instructions' => 'Evaluation pratique en salle informatique ou etude de cas appliquee.',
-                ],
-                [
-                    'type_code' => 'EF',
-                    'titre' => 'Examen final',
-                    'coefficient' => 0.50,
-                    'heure_debut' => '08:00',
-                    'heure_fin' => '11:00',
-                    'instructions' => 'Examen final de semestre (sujet + resolution argumentee).',
-                ],
-                [
-                    'type_code' => 'RATT',
-                    'titre' => 'Session de rattrapage',
-                    'coefficient' => 1.00,
-                    'heure_debut' => '10:30',
-                    'heure_fin' => '12:30',
-                    'instructions' => 'Session de rattrapage reservee aux etudiants non valides en session normale.',
-                ],
-            ];
-        }
-
         return [
             [
-                'type_code' => 'CC',
-                'titre' => 'Controle continu',
-                'coefficient' => 0.40,
-                'heure_debut' => '08:00',
-                'heure_fin' => '10:00',
-                'instructions' => 'Epreuve ecrite de mi-semestre.',
-            ],
-            [
                 'type_code' => 'EF',
-                'titre' => 'Examen final',
-                'coefficient' => 0.60,
+                'titre' => 'Examen',
+                'coefficient' => 1.00,
                 'heure_debut' => '08:00',
                 'heure_fin' => '11:00',
-                'instructions' => 'Examen final de semestre.',
-            ],
-            [
-                'type_code' => 'RATT',
-                'titre' => 'Session de rattrapage',
-                'coefficient' => 1.00,
-                'heure_debut' => '10:00',
-                'heure_fin' => '12:00',
-                'instructions' => 'Session de rattrapage reservee aux etudiants non valides en session normale.',
+                'instructions' => 'Examen de fin de semestre.',
             ],
         ];
-    }
-
-    private function isMemoireLike(string $normalized): bool
-    {
-        return Str::contains($normalized, [
-            'memoire',
-            'soutenance',
-            'projet de fin',
-            'pfe',
-            ' mpa',
-            ' mpd',
-            '-mem',
-        ]);
-    }
-
-    private function isPratiqueLike(string $normalized): bool
-    {
-        return Str::contains($normalized, [
-            'architecture',
-            'administration',
-            'donnees',
-            'big data',
-            'bi',
-            'cloud',
-            'virtualisation',
-            'reseau',
-            'telecom',
-            '5g',
-            'iot',
-            'securite',
-            'cyber',
-            'audit',
-            'voip',
-            'ingenierie',
-        ]);
     }
 
     private function resolveDate(
@@ -231,7 +110,6 @@ class EvaluationsMasterSeeder extends Seeder
         ?Carbon $dateFin,
         ?Carbon $dateDebutExamens,
         ?Carbon $dateFinExamens,
-        string $typeCode,
         int $seed
     ): Carbon {
         $start = ($dateDebut ?? now())->copy()->startOfDay();
@@ -250,13 +128,7 @@ class EvaluationsMasterSeeder extends Seeder
 
         $examSpan = max(1, $examStart->diffInDays($examEnd));
 
-        $candidate = match ($typeCode) {
-            'CC' => $start->copy()->addDays(35 + ($seed % 14)),
-            'TP', 'PROJ' => $start->copy()->addDays(55 + ($seed % 18)),
-            'EF' => $examStart->copy()->addDays($seed % ($examSpan + 1)),
-            'RATT' => $examEnd->copy()->subDays($seed % 3),
-            default => $end->copy()->subDays(7),
-        };
+        $candidate = $examStart->copy()->addDays($seed % ($examSpan + 1));
 
         if ($candidate->lt($start)) {
             return $start;

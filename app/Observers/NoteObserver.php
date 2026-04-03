@@ -41,9 +41,5 @@ class NoteObserver
         
         // On nettoie toutes les pages de la liste des notes de cet étudiant
         // On utilise un pattern car on ne connaît pas le numéro de page consulté
-        CacheService::forget("etudiant:{$etudiantId}:notes:page:*");
-        
-        // On nettoie aussi les bulletins car une nouvelle note peut changer la moyenne
-        CacheService::forgetBulletins($etudiantId);
-    }
+        CacheService::forget("etudiant:{$etudiantId}:notes:page:*");    }
 }

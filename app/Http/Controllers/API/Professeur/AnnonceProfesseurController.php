@@ -29,7 +29,9 @@ class AnnonceProfesseurController extends Controller
             return response()->json(['message' => 'Accès réservé aux professeurs'], 403);
         }
 
-        $cacheKey = CacheService::key('annonces_user', $user->id);
+        $page = $request->get('page', 1);
+
+        $cacheKey = CacheService::key('annonces_user', $user->id, $page);
 
         return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($user) {
             $annonces = Annonce::actives()

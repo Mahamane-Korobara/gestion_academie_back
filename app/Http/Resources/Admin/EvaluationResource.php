@@ -9,13 +9,16 @@ class EvaluationResource extends JsonResource
     public function toArray($request): array
     {
         $nbNotesSaisies = isset($this->notes_count) ? (int) $this->notes_count : null;
+        $nbNotesSoumises = isset($this->notes_soumises_count) ? (int) $this->notes_soumises_count : null;
         $nbNotesValidees = isset($this->notes_validees_count) ? (int) $this->notes_validees_count : null;
         $nbNotesTotales = isset($this->inscriptions_count) ? (int) $this->inscriptions_count : null;
 
         $etatNotes = null;
         if ($nbNotesTotales !== null) {
-            if ($nbNotesTotales > 0 && $nbNotesValidees !== null && $nbNotesValidees >= $nbNotesTotales) {
-                $etatNotes = 'validee';
+            if ($nbNotesTotales > 0 && $nbNotesSoumises !== null && $nbNotesSoumises >= $nbNotesTotales) {
+                $etatNotes = 'soumise';
+            } elseif ($nbNotesSoumises !== null && $nbNotesSoumises > 0) {
+                $etatNotes = 'partielle';
             } else {
                 $etatNotes = 'en_cours';
             }
@@ -31,6 +34,7 @@ class EvaluationResource extends JsonResource
             'statut' => $this->statut,
             'instructions' => $this->instructions,
             'nb_notes_saisies' => $nbNotesSaisies,
+            'nb_notes_soumises' => $nbNotesSoumises ?? $nbNotesValidees,
             'nb_notes_validees' => $nbNotesValidees,
             'nb_notes_totales' => $nbNotesTotales,
             'etat_notes' => $etatNotes,

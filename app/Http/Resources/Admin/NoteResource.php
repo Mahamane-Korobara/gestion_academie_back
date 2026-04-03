@@ -25,6 +25,11 @@ class NoteResource extends JsonResource
                 'titre' => $this->evaluation->titre,
                 'type' => $this->evaluation->typeEvaluation->nom,
                 'cours' => $this->evaluation->cours->code . ' - ' . $this->evaluation->cours->titre,
+                'semestre' => [
+                    'id' => $this->evaluation->semestre?->id,
+                    'numero' => $this->evaluation->semestre?->numero,
+                    'annee' => $this->evaluation->semestre?->anneeAcademique?->annee,
+                ],
             ],
             'saisi_par' => [
                 'id' => $this->saisiPar->id,

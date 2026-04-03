@@ -3,10 +3,8 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use App\Enums\TypeDocument;
 use App\Models\Cours;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class StoreDocumentRequest extends FormRequest
 {
@@ -17,14 +15,24 @@ class StoreDocumentRequest extends FormRequest
 
     public function rules(): array
     {
+        $fileRules = [
+            'required',
+            'file',
+            'max:51200', // 50MB
+        ];
+
+        // Scan antivirus (actif même en local)
+        if (!config('clamav.skip_validation')) {
+            $fileRules[] = 'clamav';
+        }
+
         return [
             'filiere_id' => 'required|exists:filieres,id',
             'niveau_id' => 'required|exists:niveaux,id',
             'cours_id' => 'required|exists:cours,id',
-            'type' => ['required', Rule::enum(TypeDocument::class)],
             'titre' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'fichier' => 'required|file|max:40960', // 10MB max
+            'fichier' => $fileRules,
             'date_expiration' => 'nullable|date|after:today',
         ];
     }
@@ -33,18 +41,6 @@ public function withValidator($validator)
 {
     $validator->after(function ($validator) {
         $file = $this->file('fichier');
-
-        // DEBUG - À SUPPRIMER APRÈS
-        if ($this->hasFile('fichier')) {
-            Log::info('Fichier détecté:', [
-                'size' => $file ? $file->getSize() : 'NULL',
-                'isValid' => $file ? $file->isValid() : 'NULL',
-                'error' => $file ? $file->getError() : 'NULL',
-                'errorMessage' => $file ? $file->getErrorMessage() : 'NULL'
-            ]);
-        } else {
-            Log::info('Aucun fichier détecté dans la requête');
-        }
 
         // Validation du cours et du niveau
         $cours = Cours::find($this->cours_id);
@@ -59,12 +55,36 @@ public function withValidator($validator)
             $validator->errors()->add('cours_id', 'Vous n\'enseignez pas ce cours.');
         }
 
-        // Validation MIME sécurisée
+        // Validation MIME sécurisée + blacklist renforcée
         if ($file && $file->isValid()) {
             $mimeType = $file->getMimeType();
-            $allowedMimes = TypeDocument::mimeTypes()[$this->type->value ?? $this->type] ?? [];
-            if (!in_array($mimeType, $allowedMimes)) {
-                $validator->errors()->add('fichier', 'Le type de fichier ne correspond pas au type sélectionné.');
+            $originalName = $file->getClientOriginalName();
+            $extension = Str::lower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+            $blockedExtensions = [
+                'php','phtml','phar','exe','bat','cmd','com','dll','so','sh','bash','zsh','ps1','vbs','js','jsp','asp','aspx','cgi','pl','rb','py','pyc','jar','msi','scr','htaccess'
+            ];
+
+            if ($extension && in_array($extension, $blockedExtensions, true)) {
+                $validator->errors()->add('fichier', 'Extension de fichier interdite.');
+            }
+
+            // Bloquer les doubles extensions dangereuses (ex: pdf.php, docx.js)
+            if (preg_match('/\.(php|phtml|phar|exe|bat|cmd|com|dll|so|sh|bash|zsh|ps1|vbs|js|jsp|asp|aspx|cgi|pl|rb|py|pyc|jar|msi|scr|htaccess)(\.|$)/i', $originalName)) {
+                $validator->errors()->add('fichier', 'Nom de fichier interdit (extension dangereuse détectée).');
+            }
+
+            // Refus de certains types MIME risqués
+            $blockedMimes = [
+                'text/html',
+                'application/x-php',
+                'application/x-httpd-php',
+                'application/x-sh',
+                'application/x-msdownload',
+                'application/x-msdos-program',
+            ];
+            if (in_array($mimeType, $blockedMimes, true)) {
+                $validator->errors()->add('fichier', 'Type MIME de fichier interdit.');
             }
         } elseif ($this->isMethod('POST')) {
             // Ajouter plus de détails sur l'erreur

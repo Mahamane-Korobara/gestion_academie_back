@@ -159,8 +159,8 @@ class ProfesseurCoursController extends Controller
             ])
             ->withCount('notes')
             ->withCount([
-                'notes as notes_validees_count' => function ($q) {
-                    $q->where('statut', StatutNote::VALIDEE->value);
+                'notes as notes_soumises_count' => function ($q) {
+                    $q->where('statut', StatutNote::SOUMISE->value);
                 },
             ])
             ->orderBy('date_evaluation')

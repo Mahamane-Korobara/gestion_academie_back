@@ -4,10 +4,8 @@ namespace App\Providers;
 
 use App\Models\Evaluation;
 use App\Models\Note;
-use App\Models\Bulletin;
 use App\Models\Etudiant;
 use App\Policies\EtudiantPolicy;
-use App\Policies\BulletinPolicy;
 use App\Policies\NotePolicy;
 use App\Policies\EvaluationPolicy;
 use App\Models\EmploiDuTemps;
@@ -24,9 +22,7 @@ class AuthServiceProvider extends ServiceProvider
 {
     protected $policies = [
         Evaluation::class => EvaluationPolicy::class,
-        Note::class => NotePolicy::class,
-        Bulletin::class => BulletinPolicy::class,
-        Etudiant::class => EtudiantPolicy::class,
+        Note::class => NotePolicy::class,        Etudiant::class => EtudiantPolicy::class,
         EmploiDuTemps::class => EmploiDuTempsPolicy::class,
         Annonce::class => AnnoncePolicy::class,
         Message::class => MessagePolicy::class,

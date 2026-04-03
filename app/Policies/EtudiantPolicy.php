@@ -20,12 +20,6 @@ class EtudiantPolicy
     {
         return $this->isOwner($user, $etudiant);
     }
-
-    public function consulterBulletins(User $user, Etudiant $etudiant): bool
-    {
-        return $this->isOwner($user, $etudiant);
-    }
-
     public function consulterNotes(User $user, Etudiant $etudiant): bool
     {
         return $this->isOwner($user, $etudiant);

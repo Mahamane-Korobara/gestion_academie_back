@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Evaluation;
 use App\Models\Inscription;
 use App\Models\Note;
+use App\Services\CacheService;
 use App\Services\LogService;
 use App\Enums\ActionLog;
 use App\Enums\StatutNote;
@@ -65,7 +66,7 @@ class NoteController extends Controller
                 'is_absent' => (bool) ($note?->is_absent ?? false),
                 'commentaire' => $note?->commentaire,
                 'statut' => $statut,
-                'locked' => $statut === StatutNote::VALIDEE->value,
+                'locked' => in_array($statut, [StatutNote::SOUMISE->value, StatutNote::VALIDEE->value], true),
             ];
         })->filter(fn ($item) => !empty($item['etudiant_id']))->values();
 
@@ -73,6 +74,7 @@ class NoteController extends Controller
             return $item['is_absent'] === true || $item['note'] !== null;
         })->count();
 
+        $notesSoumises = $etudiants->where('statut', StatutNote::SOUMISE->value)->count();
         $notesValidees = $etudiants->where('statut', StatutNote::VALIDEE->value)->count();
         $absents = $etudiants->where('is_absent', true)->count();
 
@@ -102,6 +104,7 @@ class NoteController extends Controller
             'resume' => [
                 'total' => $etudiants->count(),
                 'notes_saisies' => $notesSaisies,
+                'notes_soumises' => $notesSoumises,
                 'notes_validees' => $notesValidees,
                 'absents' => $absents,
             ],
@@ -154,7 +157,7 @@ class NoteController extends Controller
             $saisies[] = [
                 'etudiant_id'    => $item['etudiant_id'],
                 'evaluation_id'  => $evaluation->id,
-                'note'           => $isAbsent ? null : $note,
+                'note'           => $isAbsent ? 0 : $note,
                 'is_absent'      => $isAbsent,
                 'commentaire'    => $item['commentaire'] ?? null,
                 'statut'         => $statutCible,
@@ -183,7 +186,7 @@ class NoteController extends Controller
                 foreach ($saisies as $ligne) {
                     $noteExistante = $notesExistantes->get($ligne['etudiant_id']);
 
-                    if ($noteExistante && $noteExistante->statut === StatutNote::VALIDEE) {
+                    if ($noteExistante && in_array($noteExistante->statut, [StatutNote::SOUMISE, StatutNote::VALIDEE], true)) {
                         $etudiantsIgnores++;
                         continue;
                     }
@@ -197,7 +200,7 @@ class NoteController extends Controller
                 if (!empty($etudiantIds)) {
                     Note::where('evaluation_id', $evaluation->id)
                         ->whereIn('etudiant_id', $etudiantIds)
-                        ->where('statut', '!=', StatutNote::VALIDEE->value)
+                        ->whereNotIn('statut', [StatutNote::SOUMISE->value, StatutNote::VALIDEE->value])
                         ->delete();
 
                     Note::insert($saisiesEligibles);
@@ -220,6 +223,14 @@ class NoteController extends Controller
                     'ignored' => $etudiantsIgnores,
                 ];
             });
+
+            CacheService::forget('notes:soumises:*');
+
+            $etudiantIds = array_unique(array_column($saisies, 'etudiant_id'));
+            foreach ($etudiantIds as $etudiantId) {
+                CacheService::forget("etudiant:dashboard:{$etudiantId}");
+                CacheService::forget("etudiant:{$etudiantId}:notes:page:*");
+            }
 
             return response()->json([
                 'message' => $statutCible === StatutNote::SOUMISE->value

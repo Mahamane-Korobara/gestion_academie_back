@@ -26,7 +26,6 @@ class SemestreResource extends JsonResource
             ]),
             'inscriptions_count' => $this->whenCounted('inscriptions'),
             'evaluations_count' => $this->whenCounted('evaluations'),
-            'bulletins_count' => $this->whenCounted('bulletins'),
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
     }

@@ -20,9 +20,10 @@ class AnnonceEtudiantController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $page = $request->get('page', 1);
 
         // Clé de cache spécifique à l'utilisateur
-        $cacheKey = CacheService::key('annonces_user', $user->id);
+        $cacheKey = CacheService::key('annonces_user', $user->id, $page);
 
         return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($user) {
             $annonces = Annonce::actives()

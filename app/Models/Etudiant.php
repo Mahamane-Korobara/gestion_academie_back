@@ -69,12 +69,6 @@ class Etudiant extends Model
     {
         return $this->hasMany(Note::class);
     }
-
-    public function bulletins()
-    {
-        return $this->hasMany(Bulletin::class);
-    }
-
     public function documents()
     {
         return $this->hasMany(Document::class);

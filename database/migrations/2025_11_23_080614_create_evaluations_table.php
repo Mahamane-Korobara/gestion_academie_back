@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('cours_id')->constrained('cours')->onDelete('cascade');
             $table->foreignId('type_evaluation_id')->constrained('types_evaluations')->onDelete('restrict');
             $table->foreignId('semestre_id')->constrained('semestres')->onDelete('cascade');
-            $table->string('titre'); // Ex: "Contrôle 1", "Examen Final"
+            $table->string('titre'); // Ex: "Examen"
             $table->decimal('coefficient', 4, 2); // Coefficient spécifique à cette évaluation
             $table->date('date_evaluation')->nullable();
             $table->time('heure_debut')->nullable();

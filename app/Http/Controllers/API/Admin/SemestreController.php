@@ -29,7 +29,7 @@ class SemestreController extends Controller
         return Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($anneeId) {
             $semestres = Semestre::where('annee_academique_id', $anneeId)
                 ->with('anneeAcademique')
-                ->withCount(['inscriptions', 'evaluations', 'bulletins'])
+                ->withCount(['inscriptions', 'evaluations'])
                 ->orderBy('numero')
                 ->get();
 
@@ -58,7 +58,7 @@ class SemestreController extends Controller
     public function show(Semestre $semestre)
     {
         $semestre->load('anneeAcademique')
-            ->loadCount(['inscriptions', 'evaluations', 'bulletins', 'emploisDuTemps']);
+            ->loadCount(['inscriptions', 'evaluations', 'emploisDuTemps']);
 
         return new SemestreResource($semestre);
     }

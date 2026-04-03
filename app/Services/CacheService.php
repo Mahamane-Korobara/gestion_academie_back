@@ -41,11 +41,6 @@ class CacheService
         // Dashboard
         'stats_dashboard' => 'stats:dashboard',
         
-        // Bulletins
-        'bulletin_semestre' => 'bulletin:etudiant:%d:semestre:%d',
-        'bulletin_annuel' => 'bulletin:etudiant:%d:annuel:%d',
-        'bulletins_list' => 'bulletins:all:page:%d',
-        
         // Notes
         'notes_en_attente' => 'notes:en_attente:page:%d:filters:%s',
         
@@ -76,6 +71,7 @@ class CacheService
         'annonces_global' => 'annonces:global:page:%d',
         'annonces_filtre' => 'annonces:filtre:%s:%d:page:%d', // type:id:page
         'annonce_detail'  => 'annonce:%d',
+        'annonces_user'   => 'annonces:user:%d:page:%d',
 
         // Professeur - Cours
         'prof_cours_list' => 'prof:%d:cours:list',
@@ -169,18 +165,6 @@ class CacheService
         self::forget([
             self::KEYS['cours'],
             'cours:*',
-            self::KEYS['stats_dashboard'],
-        ]);
-    }
-
-    /**
-     * Invalider tous les caches liés aux bulletins
-     */
-    public static function forgetBulletins(int $etudiantId): void
-    {
-        self::forget([
-            sprintf('bulletin:etudiant:%d:*', $etudiantId),
-            'bulletins:all:*',
             self::KEYS['stats_dashboard'],
         ]);
     }

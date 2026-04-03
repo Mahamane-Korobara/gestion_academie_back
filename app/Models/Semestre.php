@@ -51,12 +51,6 @@ class Semestre extends Model
     {
         return $this->hasMany(Inscription::class);
     }
-
-    public function bulletins()
-    {
-        return $this->hasMany(Bulletin::class);
-    }
-
     // Scope pour le semestre actif
     public function scopeActive($query)
     {

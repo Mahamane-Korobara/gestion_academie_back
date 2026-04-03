@@ -42,30 +42,6 @@ CREATE TABLE `annonces` (
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-CREATE TABLE `bulletins` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `etudiant_id` bigint(20) unsigned NOT NULL,
-  `semestre_id` bigint(20) unsigned DEFAULT NULL,
-  `moyenne_generale` decimal(5,2) NOT NULL,
-  `rang` int(11) DEFAULT NULL,
-  `total_etudiants` int(11) DEFAULT NULL,
-  `observations` text DEFAULT NULL,
-  `decision` enum('admis','rattrapage','redoublant','diplome','passe_classe_superieure','ajourne') DEFAULT NULL,
-  `fichier_pdf` varchar(255) DEFAULT NULL,
-  `est_genere` tinyint(1) NOT NULL DEFAULT 0,
-  `date_generation` timestamp NULL DEFAULT NULL,
-  `genere_par` bigint(20) unsigned DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `bulletins_etudiant_id_semestre_id_unique` (`etudiant_id`,`semestre_id`),
-  KEY `bulletins_semestre_id_foreign` (`semestre_id`),
-  KEY `bulletins_genere_par_foreign` (`genere_par`),
-  CONSTRAINT `bulletins_etudiant_id_foreign` FOREIGN KEY (`etudiant_id`) REFERENCES `etudiants` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `bulletins_genere_par_foreign` FOREIGN KEY (`genere_par`) REFERENCES `users` (`id`),
-  CONSTRAINT `bulletins_semestre_id_foreign` FOREIGN KEY (`semestre_id`) REFERENCES `semestres` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE `cache` (
   `key` varchar(255) NOT NULL,
   `value` mediumtext NOT NULL,

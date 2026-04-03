@@ -37,7 +37,6 @@ Système complet de gestion académique pour établissements d'enseignement sup�
 
 - **Administrateur** : Gestion complète (users, filières, cours, évaluations, notes, planning)
 - **Professeur** : Gestion des cours, saisie des notes, consultation planning
-- **Étudiant** : Consultation des notes, bulletins, emplois du temps
 
 ### Fonctionnalités principales
 
@@ -46,7 +45,6 @@ Système complet de gestion académique pour établissements d'enseignement sup�
 ✅ **Gestion académique** : Filières, niveaux, cours, inscriptions  
 ✅ **Évaluations & Notes** : CRUD complet, saisie (prof), validation (admin)  
 ✅ **Emplois du temps** : Planning des cours avec détection de conflits  
-✅ **Bulletins** : Génération semestrielle et annuelle  
 ✅ **Cache optimisé** : Redis/File avec TTL adaptatif  
 ✅ **Logs d'activité** : Traçabilité complète de toutes les actions  
 ✅ **API RESTful** : 93 endpoints documentés  
@@ -191,17 +189,14 @@ gestion-academique/
 ├── app/
 │   ├── Enums/                           # 14 Énumérations ✅
 │   │   ├── ActionLog.php
-│   │   ├── DecisionBulletin.php
 │   │   ├── JourSemaine.php
 │   │   ├── PrioriteAnnonce.php
 │   │   ├── Semestre.php
 │   │   ├── Sexe.php
-│   │   ├── StatutDocument.php
 │   │   ├── StatutEvaluation.php
 │   │   ├── StatutNote.php
 │   │   ├── StudentStatus.php
 │   │   ├── TypeAnnonce.php
-│   │   ├── TypeDocument.php
 │   │   ├── TypeSeance.php
 │   │   └── UserRole.php
 │   │
@@ -221,15 +216,12 @@ gestion-academique/
 │   │   │       │   ├── EvaluationController.php (✅ CRUD Évaluations)
 │   │   │       │   ├── AffectationController.php (✅ Affecter Professeurs)
 │   │   │       │   ├── NoteAdminController.php (✅ Valider Notes)
-│   │   │       │   ├── BulletinController.php (✅ CRUD Bulletins)
 │   │   │       │   ├── EmploiDuTempsAdminController.php (✅ CRUD Planning)
 │   │   │       │   └── DashboardController.php (✅ Statistiques)
 │   │   │       ├── Professeur/ (2 Controllers) ✅
 │   │   │       │   ├── NoteController.php (✅ Saisie Notes)
 │   │   │       │   └── EmploiDuTempsProfesseurController.php (✅ Planning Perso)
 │   │   │       └── Etudiant/ (3 Controllers) ✅
-│   │   │           ├── EtudiantController.php (✅ Notes, Bulletins, Cours)
-│   │   │           ├── BulletinEtudiantController.php (✅ Bulletins + PDF)
 │   │   │           └── EmploiDuTempsEtudiantController.php (✅ Planning Perso)
 │   │   │
 │   │   ├── Middleware/ (3 Middlewares) ✅
@@ -259,7 +251,6 @@ gestion-academique/
 │   │   │   │   ├── CreateEvaluationRequest.php
 │   │   │   │   ├── UpdateEvaluationRequest.php
 │   │   │   │   ├── StoreEmploiDuTempsRequest.php
-│   │   │   │   └── StoreBulletinRequest.php
 │   │   │   └── Etudiant/ (0)
 │   │   │
 │   │   ├── Resources/ (15 Resources API) ✅
@@ -274,16 +265,13 @@ gestion-academique/
 │   │   │   │   ├── InscriptionResource.php
 │   │   │   │   ├── EvaluationResource.php
 │   │   │   │   ├── NoteResource.php
-│   │   │   │   ├── BulletinResource.php
 │   │   │   │   └── EmploiDuTempsResource.php
 │   │   │   ├── Etudiant/
-│   │   │   │   ├── BulletinEtudiantResource.php
 │   │   │   │   └── EmploiDuTempsEtudiantResource.php
 │   │   │   └── Professeur/
 │   │   │       └── EmploiDuTempsProfesseurResource.php
 │   │   │
 │   │   └── Policies/ (5 Policies) ✅
-│   │       ├── BulletinPolicy.php
 │   │       ├── EtudiantPolicy.php
 │   │       ├── EmploiDuTempsPolicy.php
 │   │       ├── EvaluationPolicy.php
@@ -305,7 +293,6 @@ gestion-academique/
 │   │   ├── TypeEvaluation.php
 │   │   ├── Evaluation.php
 │   │   ├── Note.php
-│   │   ├── Bulletin.php
 │   │   ├── Annonce.php
 │   │   ├── Notification.php
 │   │   ├── Message.php
@@ -351,15 +338,12 @@ gestion-academique/
 │   │   ├── 2024_*_create_types_evaluations_table.php
 │   │   ├── 2024_*_create_evaluations_table.php
 │   │   ├── 2024_*_create_notes_table.php
-│   │   ├── 2024_*_create_bulletins_table.php
 │   │   ├── 2024_*_create_annonces_table.php
 │   │   ├── 2024_*_create_notifications_table.php
 │   │   ├── 2024_*_create_messages_table.php
 │   │   ├── 2024_*_create_documents_table.php
 │   │   ├── 2024_*_create_log_activites_table.php
 │   │   ├── 2024_*_update_cours_add_semestre_id.php
-│   │   ├── 2024_*_modify_semestre_id_nullable_in_bulletins.php
-│   │   ├── 2024_*_add_ajourne_to_bulletins_decision.php
 │   │   ├── 2024_*_create_notifications_table.php
 │   │   └── 2024_*_rename_emplois_du_temps_to_emploi_du_temps.php
 │   │
@@ -378,7 +362,6 @@ gestion-academique/
 │   ├── views/
 │   │   ├── welcome.blade.php (✅)
 │   │   └── pdf/
-│   │       └── bulletin.blade.php (✅ Bulletin PDF)
 │   ├── css/
 │   ├── js/
 │   └── ... assets
@@ -430,13 +413,10 @@ gestion-academique/
 | **Migrations** | 32 | ✅ | 22 Tables + 10 Modifications |
 | **Requests** | 23 | ✅ | FormRequest Validation (Auth 3, Admin 17, Common 3) |
 | **Resources** | 15 | ✅ | API Transformation |
-| **Policies** | 8 | ✅ | Authorization Fine-grained (BulletinPolicy, EtudiantPolicy, EmploiDuTempsPolicy, EvaluationPolicy, NotePolicy, AnnoncePolicy, DocumentPolicy, MessagePolicy) |
 | **Services** | 8 | ✅ | CacheService, LogService, CalculAcademique, EmploiDuTempsService (×2), DashboardService, ProfesseurDashboardService, PdfService |
-| **Enums** | 14 | ✅ | Type Safety (UserRole, Sexe, StudentStatus, JourSemaine, Semestre, StatutNote, DecisionBulletin, StatutEvaluation, TypeAnnonce, PrioriteAnnonce, TypeDocument, StatutDocument, TypeSeance, ActionLog) |
 | **Routes API** | 93 | ✅ | RESTful Endpoints complets |
 | **Notifications** | 1 | ✅ | UserCredentialsSent |
 | **Observers** | 1 | ✅ | NoteObserver (Cache invalidation) |
-| **Blade Views** | 2 | ✅ | Welcome + Bulletin PDF |
 | **Middlewares** | 3 | ✅ | CheckUserActive, CheckPasswordChange, CheckRole |
 
 ---
@@ -461,10 +441,9 @@ Le système utilise **22 tables** interconnectées :
 10. **inscriptions** - Inscriptions étudiants/cours
 11. **salles** - Salles de cours
 12. **emplois_du_temps** - Planning des cours
-13. **types_evaluations** - Types d'évaluation (CC, EF, TP, etc.)
+13. **types_evaluations** - Types d'évaluation (EF)
 14. **evaluations** - Évaluations planifiées
 15. **notes** - Notes des étudiants
-16. **bulletins** - Bulletins générés
 17. **annonces** - Annonces système
 18. **notifications** - Notifications utilisateurs
 19. **messages** - Messagerie interne
@@ -484,7 +463,6 @@ Niveau (1) → (N) Etudiants
 Cours (N) ↔ (N) Professeurs (pivot: cours_professeur)
 Etudiant (N) ↔ (N) Cours (via: inscriptions)
 Etudiant (1) → (N) Notes
-Etudiant (1) → (N) Bulletins
 ```
 
 ### Commandes utiles
@@ -528,10 +506,9 @@ php artisan make:model ModelName -m
 11. inscriptions                  - Inscriptions étudiants aux cours
 12. salles                        - Salles de cours
 13. emplois_du_temps              - Planning des cours (jour, heure, lieu)
-14. types_evaluations             - Types d'évaluation (CC, Examen, TP, etc.)
+14. types_evaluations             - Types d'évaluation (Examen / EF)
 15. evaluations                   - Évaluations planifiées par cours
 16. notes                         - Notes des étudiants aux évaluations
-17. bulletins                     - Bulletins générés (semestriels/annuels)
 18. annonces                      - Annonces système
 19. messages                      - Messagerie interne
 20. documents                     - Documents générés/envoyés
@@ -543,12 +520,9 @@ php artisan make:model ModelName -m
 
 ```
 - 2025_*_update_cours_add_semestre_id.php
-- 2025_*_modify_semestre_id_nullable_in_bulletins_table.php
-- 2025_*_add_ajourne_to_bulletins_decision.php
 - 2025_*_add_soft_delete_columns_to_messages_table.php
 - 2025_*_create_emplois_du_temps_table.php
 - 2025_*_add_composite_indexes_to_emplois_du_temps.php
-- 2025_*_update_documents_type_enum.php
 - 2025_*_rename_emplois_du_temps_to_emploi_du_temps.php
 ```
 
@@ -572,12 +546,8 @@ Rôle     : Admin
 
 **3. TypeEvaluationSeeder**
 ```php
-// Crée 5 types d'évaluations
-- CC (Contrôle continu)
-- Examen
-- Projet
-- TP (Travaux pratiques)
-- Travail personnel
+// Crée 1 type d'évaluation
+- Examen (EF)
 ```
 
 **4. DatabaseSeeder** (orchestrateur)
@@ -722,15 +692,11 @@ Route::middleware('role:etudiant')->group(function () {
 
 ### 8 Policies implémentées ✅
 
-**1. BulletinPolicy**
 ```php
-- view(User $user, Bulletin $bulletin)
-  // Admin peut voir tous, Étudiant ses bulletins
 
 - create(User $user)
   // Admin seulement
 
-- delete(User $user, Bulletin $bulletin)
   // Admin seulement
 ```
 
@@ -870,7 +836,6 @@ Route::middleware('role:etudiant')->group(function () {
 - `CreateEvaluationRequest` - Évaluation (cours, type, dates, salle)
 - `UpdateEvaluationRequest` - Modification évaluation
 - `StoreEmploiDuTempsRequest` - Planning (niveau, prof, salle, horaire)
-- `StoreBulletinRequest` - Bulletin (étudiant, semestre, décision)
 
 **Common Requests (3):**
 - `StoreMessageRequest` - Message (contenu, destinataire)
@@ -886,18 +851,15 @@ Route::middleware('role:etudiant')->group(function () {
 - `NiveauResource` - Niveau avec filière
 - `CoursResource` - Cours avec professeurs et count inscriptions
 - `AnneeAcademiqueResource` - Année avec counts (semestres, étudiants, cours)
-- `SemestreResource` - Semestre avec counts (inscriptions, évaluations, bulletins)
 - `InscriptionResource` - Inscription avec relations complètes
 - `EvaluationResource` - Évaluation avec type, cours, count notes
 - `NoteResource` - Note avec valeur, statut, relations
-- `BulletinResource` - Bulletin avec moyenne et décision
 - `EmploiDuTempsResource` - Planning avec jour/heure et ressources
 
 **Professeur Resources (1):**
 - `EmploiDuTempsProfesseurResource` - Planning personnalisé professeur
 
 **Étudiant Resources (2):**
-- `BulletinEtudiantResource` - Bulletin étudiant avec notes et décision
 - `EmploiDuTempsEtudiantResource` - Planning personnalisé étudiant
 
 ---
@@ -955,19 +917,16 @@ class NoteObserver
 {
     /**
      * Se déclenche après création d'une note
-     * Invalide: cache étudiant, notes paginées, bulletins
      */
     public function created(Note $note): void
 
     /**
      * Se déclenche après modification d'une note
-     * Invalide: cache étudiant, notes paginées, bulletins
      */
     public function updated(Note $note): void
 
     /**
      * Se déclenche après suppression d'une note
-     * Invalide: cache étudiant, notes paginées, bulletins
      */
     public function deleted(Note $note): void
 }
@@ -977,7 +936,6 @@ class NoteObserver
 ```
 - etudiant:dashboard:{etudiant_id}
 - etudiant:{etudiant_id}:notes:page:* (pattern matching)
-- Tous les bulletins de l'étudiant
 ```
 
 ---
@@ -1015,7 +973,6 @@ Filières:        filieres:all, filiere:{id}, niveaux:filiere:{id}
 Cours:           cours:all, cours:niveau:{id}
 Professeurs:     professeurs:all, etudiants:all
 Années:          annee:active, semestre:actif
-Bulletins:       bulletin:etudiant:{id}:semestre:{id}
 Planning:        prof:{id}:planning:*, etudiant:{id}:planning:*
 Annonces:        annonces:global:page:{page}
 Documents:       documents:prof:{id}:*, documents:etudiant:{id}:*
@@ -1076,10 +1033,8 @@ class CalculAcademique
     /**
      * Décision académique (Admis/Ajourné/Rattrapage)
      */
-    public static function decisionBulletin(
         float $moyenne,
         ?string $decision = null
-    ): DecisionBulletin enum
 
     /**
      * Prédictions basées sur regroupement de notes
@@ -1198,7 +1153,6 @@ class EmploiDuTempsEtudiantService
 
 ### 6. PdfService ✅
 
-Génération de PDF (bulletins, documents).
 
 ```php
 namespace App\Services;
@@ -1206,10 +1160,7 @@ namespace App\Services;
 class PdfService
 {
     /**
-     * Générer PDF bulletin
      */
-    public static function genererBulletin(
-        Bulletin $bulletin
     ): \Barryvdh\DomPDF\PDF
 
     /**
@@ -1315,8 +1266,6 @@ enum StatutNote: string {
     case VALIDEE = 'validee';
 }
 
-// Décision bulletin
-enum DecisionBulletin: string {
     case ADMIS = 'admis';
     case AJOURNÉ = 'ajourné';
     case RATTRAPAGE = 'rattrapage';
@@ -1331,11 +1280,9 @@ enum StatutEvaluation: string {
 
 // Type évaluation
 enum TypeEvaluation: string {
-    case CC = 'cc';           // Contrôle continu
     case EXAMEN = 'examen';
-    case PROJET = 'projet';
-    case TP = 'tp';
 }
+
 
 // Type annonce
 enum TypeAnnonce: string {
@@ -1349,22 +1296,6 @@ enum PrioriteAnnonce: int {
     case BASSE = 1;
     case NORMALE = 2;
     case HAUTE = 3;
-}
-
-// Type document
-enum TypeDocument: string {
-    case NOTE = 'note';
-    case BULLETIN = 'bulletin';
-    case ATTESTATION = 'attestation';
-    case EMPLOI_DU_TEMPS = 'emploi_du_temps';
-}
-
-// Statut document
-enum StatutDocument: string {
-    case CREE = 'cree';
-    case ENVOYE = 'envoye';
-    case TELECHARGE = 'telecharge';
-    case ARCHIVE = 'archive';
 }
 
 // Type séance
@@ -1551,7 +1482,6 @@ Les nouveaux utilisateurs (étudiants/professeurs) doivent changer leur mot de p
 - annee_academique (relation)
 - inscriptions_count
 - evaluations_count
-- bulletins_count
 ```
 
 **Inscription Resource**
@@ -1716,15 +1646,9 @@ Base URL : `http://localhost:8000/api`
 |---------|----------|-------------|
 | GET | `/admin/dashboard` | Statistiques dashboard |
 
-### Admin - Bulletins
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/admin/bulletins/etudiants/{id}/semestres/{id}/generer` | Générer bulletin semestre |
-| GET | `/admin/bulletins/etudiants/{id}/semestres/{id}` | Voir bulletin semestre |
-| POST | `/admin/bulletins/etudiants/{id}/annees/{id}/generer` | Générer bulletin annuel |
-| GET | `/admin/bulletins/etudiants/{id}/annees/{id}` | Voir bulletin annuel |
-| GET | `/admin/bulletins` | Lister tous les bulletins |
 
 ### Admin - Emplois du Temps
 
@@ -1758,10 +1682,8 @@ Base URL : `http://localhost:8000/api`
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
 | GET | `/etudiant/dashboard` | Dashboard principal |
-| GET | `/etudiant/bulletins` | Lister bulletins |
 | GET | `/etudiant/notes` | Lister notes détaillées |
 | GET | `/etudiant/cours` | Cours inscrits |
-| GET | `/etudiant/bulletins/{id}/pdf` | Télécharger bulletin PDF |
 
 ### Étudiant - Emploi du Temps
 
@@ -1789,11 +1711,9 @@ Base URL : `http://localhost:8000/api`
 | **Admin - Inscriptions** | CRUD + Masse + Auto | 7 |
 | **Admin - Évaluations** | CRUD | 6 |
 | **Admin - Validation Notes** | Valider + Masse + Liste | 3 |
-| **Admin - Bulletins** | Générer + Voir | 5 |
 | **Admin - Emplois du Temps** | CRUD + Disponibilités | 6 |
 | **Professeur - Notes** | Saisie | 1 |
 | **Professeur - EDT** | Consultation (5 variantes) | 5 |
-| **Étudiant - Consultation** | Dashboard, Bulletins, Notes | 5 |
 | **Étudiant - EDT** | Consultation (5 variantes) | 5 |
 | **TOTAL** | **80+ endpoints** | **93** |
 
@@ -2066,7 +1986,6 @@ LogService::write(
 ```php
 // Calculs de moyennes et décisions académiques
 CalculAcademique::calculerMoyenne($notes);
-CalculAcademique::decisionBulletin($moyenne);  // Admis/Ajourné/Rattrapage
 ```
 
 **EmploiDuTempsService** ✅
@@ -2087,8 +2006,6 @@ EmploiDuTempsEtudiantService::planningProchains($etudiant);
 
 **PdfService**
 ```php
-// Génération PDF (bulletins, documents)
-PdfService::genererBulletin($bulletin);
 PdfService::genererDocument($data);
 ```
 
@@ -2098,8 +2015,6 @@ PdfService::genererDocument($data);
 
 ### 5 Policies pour contrôle d'accès fine-grained
 
-**BulletinPolicy**
-- `view()` : Admin peut voir tous, Étudiant ses bulletins
 - `create()` : Admin seulement
 - `delete()` : Admin seulement
 
@@ -2194,8 +2109,6 @@ PdfService::genererDocument($data);
 
 **Consultation Notes :**
 - Voir ses notes par évaluation
-- Voir ses bulletins (semestriels et annuels)
-- Télécharger bulletins en PDF
 - Voir ses cours inscrits
 
 **Emploi du Temps :**
@@ -2293,14 +2206,12 @@ php artisan test --coverage
 | **Controllers** | ✅ 20 implémentés | Auth (1), Admin (11), Professeur (2), Étudiant (3), Base (1) |
 | **Resources** | ✅ 15 implémentées | Admin (12), Professeur (1), Étudiant (2) |
 | **Requests** | ✅ 20 implémentées | Auth (3), Admin (17), Validation complète |
-| **Policies** | ✅ 5 implémentées | Bulletin, Étudiant, EmploiDuTemps, Evaluation, Note |
 | **Middleware** | ✅ 3 implémentés | CheckUserActive, CheckPasswordChange, CheckRole |
 | **Routes API** | ✅ 80+ endpoints | Tous les CRUD + actions spéciales |
 | **Models** | ✅ 21 modèles | Relations complètes Eloquent |
 | **Services** | ✅ 6 services | Cache, Log, Calcul, EmploiDuTemps (×2), PDF |
 | **Enums** | ✅ 14 énumérations | Types et statuts complets |
 | **Migrations** | ✅ 30+ migrations | 22 tables + modifications |
-| **Blade Views** | ✅ 2 vues | welcome.blade.php, pdf/bulletin.blade.php |
 | **Seeders** | ✅ Présents | Rôles, Admin, TypeEvaluation |
 
 ### 🎯 Controllers implémentés (20 total)
@@ -2372,7 +2283,6 @@ php artisan test --coverage
 - ✅ Modifier semestre
 - ✅ Supprimer semestre
 - ✅ Activer semestre
-- ✅ Counts associés (inscriptions, évaluations, bulletins)
 
 **7. InscriptionController**
 - ✅ Lister inscriptions
@@ -2408,10 +2318,6 @@ php artisan test --coverage
 - ✅ Transactions DB pour intégrité
 - ✅ Authorization via Policy
 
-**11. BulletinController**
-- ✅ Générer bulletins
-- ✅ Lister bulletins
-- ✅ Afficher détails bulletin
 - ✅ Télécharger en PDF
 - ✅ Cache intelligent
 
@@ -2450,15 +2356,10 @@ php artisan test --coverage
 
 **1. EtudiantController**
 - ✅ Voir ses notes par évaluation
-- ✅ Voir ses bulletins
 - ✅ Voir ses cours inscrits
 - ✅ Voir ses résultats
 
-**2. BulletinEtudiantController**
-- ✅ Voir bulletins semestriels
-- ✅ Voir bulletin annuel
 - ✅ Télécharger en PDF
-- ✅ Historique bulletins
 
 **3. EmploiDuTempsEtudiantController**
 - ✅ Voir planning complet
@@ -2518,7 +2419,6 @@ php artisan test --coverage
 - [x] CRUD Semestres
 - [x] Activation semestre actif
 - [x] Lier à année académique
-- [x] Counts inscriptions/évaluations/bulletins
 - [x] Numérotation (S1, S2)
 
 ### ✅ Gestion Admin - Inscriptions
@@ -2565,9 +2465,7 @@ php artisan test --coverage
 
 ### ✅ Gestion Étudiant - Consultation
 - [x] Voir ses notes par évaluation
-- [x] Voir ses bulletins
 - [x] Voir ses cours inscrits
-- [x] Télécharger bulletins PDF
 - [x] Voir planning personnel
 - [x] Voir planning par jour/semaine
 
@@ -2625,7 +2523,6 @@ php artisan test --coverage
 - [x] CalculAcademique (moyennes et décisions)
 - [x] EmploiDuTempsService (planning)
 - [x] EmploiDuTempsEtudiantService (planning étudiant)
-- [x] PdfService (génération bulletins)
 
 ### ✅ Authorization & Policies
 - [x] 5 Policies implémentées
@@ -2635,7 +2532,6 @@ php artisan test --coverage
 
 ### ✅ Blade Views
 - [x] welcome.blade.php (page d'accueil)
-- [x] pdf/bulletin.blade.php (template PDF)
 
 ### 🚧 À développer (v0.4.0)
 
@@ -2659,9 +2555,7 @@ php artisan test --coverage
 - [x] ~~Policies (Authorization)~~ FAIT ✨
 
 **Reste à faire (v0.3.0):**
-- [ ] Controllers Étudiant (consultation notes, bulletins)
 - [ ] Emplois du temps complets
-- [ ] Génération bulletins (PDF)
 - [ ] Calcul moyennes automatiques
 - [ ] Système d'annonces
 - [ ] Notifications push
@@ -2899,13 +2793,11 @@ LOG_LEVEL=error
 ### Version 0.3.0 (Actuelle) - ✅ NOUVEAU
 
 **Ajouté :**
-- ✅ 3 nouveaux Controllers Étudiant (notes, bulletins, emplois du temps)
 - ✅ 1 nouveau Controller Professeur (EmploiDuTempsProfesseurController)
 - ✅ Service EmploiDuTempsService pour gestion planning
 - ✅ Service EmploiDuTempsEtudiantService pour planning personnalisé
 - ✅ Détection de conflits (niveau, professeur, salle)
 - ✅ Disponibilités (professeurs et cours disponibles)
-- ✅ 5 Policies d'authorization (Bulletin, Étudiant, EmploiDuTemps, Evaluation, Note)
 - ✅ 15 Resources API (ajout Etudiant et Professeur Resources)
 - ✅ 80+ endpoints API complets
 - ✅ Emplois du temps avec gestion salle et horaires

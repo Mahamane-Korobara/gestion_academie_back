@@ -16,6 +16,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           # On pointe vers le script spécifique de Gestion Académique
           script: |
-            chmod +x /var/www/gestion-academique/deploy.sh
-            /var/www/gestion-academique/deploy.sh
+            chmod +x /var/www/projects/gestion-academique/deploy.sh
+            /var/www/projects/gestion-academique/deploy.sh
           debug: true

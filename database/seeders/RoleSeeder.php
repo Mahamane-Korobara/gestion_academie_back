@@ -27,7 +27,7 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'etudiant',
                 'display_name' => 'Étudiant',
-                'description' => 'Consultation des notes et bulletins',
+                'description' => 'Consultation des notes',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

@@ -17,7 +17,7 @@ use App\Http\Controllers\API\Admin\UserController;
 use App\Http\Controllers\API\Admin\InscriptionController;
 use App\Http\Controllers\API\Admin\EvaluationController;
 use App\Http\Controllers\API\Admin\NoteAdminController;
-use App\Http\Controllers\API\Admin\BulletinController;
+use App\Http\Controllers\API\Admin\RapportAdminController;
 use App\Http\Controllers\API\Admin\DashboardController;
 use App\Http\Controllers\API\Professeur\ProfesseurCoursController;
 use App\Http\Controllers\API\Admin\EmploiDuTempsAdminController;
@@ -32,6 +32,7 @@ use App\Http\Controllers\API\Professeur\AnnonceProfesseurController;
 // Contrôleurs Étudiant
 use App\Http\Controllers\API\Etudiant\EtudiantController;
 use App\Http\Controllers\API\Etudiant\EmploiDuTempsEtudiantController;
+use App\Http\Controllers\API\Etudiant\AnnonceEtudiantController;
 
 // Contrôleurs Communs
 use App\Http\Controllers\API\MessageController;
@@ -73,6 +74,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{message}', [MessageController::class, 'show']);
         Route::delete('/{message}', [MessageController::class, 'destroy']);
     });
+});
+
+// ========================================================================
+// ROUTES DOCUMENTS (TOUS RÔLES) - TÉLÉCHARGEMENT / PRÉVIEW
+// ========================================================================
+Route::middleware([
+    'auth:sanctum',
+    'check.user.active',
+    'check.password.change'
+])->prefix('documents')->group(function () {
+    Route::get('/download/{uuid}', [DocumentController::class, 'downloadByUuid'])
+        ->name('documents.download');
+    Route::get('/preview/{uuid}', [DocumentController::class, 'previewByUuid'])
+        ->name('documents.preview');
 });
 
 // ============================================================================
@@ -196,28 +211,20 @@ Route::middleware([
     });
 
     // -------------------------------------------------------------------------
-    // Gestion des validations de notes
+    // Gestion des notes (soumission + export)
     // -------------------------------------------------------------------------
     Route::prefix('notes')->group(function () {
-        Route::patch('/{note}/valider', [NoteAdminController::class, 'validerNotes']);
-        Route::get('/en-attente', [NoteAdminController::class, 'notesEnAttente']);
-        Route::post('/valider-masse', [NoteAdminController::class, 'validerMasse']);
+        Route::get('/soumises', [NoteAdminController::class, 'notesSoumises']);
+        Route::post('/reouvrir', [NoteAdminController::class, 'reouvrirMasse']);
+        Route::get('/exports/status', [NoteAdminController::class, 'exportStatus']);
+        Route::post('/export', [NoteAdminController::class, 'exportExcel']);
     });
 
     // -------------------------------------------------------------------------
-    // Gestion des Bulletins
+    // Rapports (exports)
     // -------------------------------------------------------------------------
-    Route::prefix('bulletins')->group(function () {
-        // Bulletins semestriels
-        Route::post('/etudiants/{etudiant}/semestres/{semestre}/generer', [BulletinController::class, 'genererSemestre']);
-        Route::get('/etudiants/{etudiant}/semestres/{semestre}', [BulletinController::class, 'show']);
-
-        // Bulletins annuels
-        Route::post('/etudiants/{etudiant}/annees/{anneeAcademiqueId}/generer', [BulletinController::class, 'genererAnnuel']);
-        Route::get('/etudiants/{etudiant}/annees/{anneeAcademiqueId}', [BulletinController::class, 'show']);
-
-        // Liste globale
-        Route::get('/', [BulletinController::class, 'index']);
+    Route::prefix("rapports")->group(function () {
+        Route::post("/export", [RapportAdminController::class, "export"]);
     });
 
     // -------------------------------------------------------------------------
@@ -309,7 +316,6 @@ Route::middleware([
         Route::get('/', [DocumentController::class, 'index']);      // Liste avec filtres
         Route::post('/', [DocumentController::class, 'store']);     // Envoyer
         Route::delete('/{document}', [DocumentController::class, 'destroy']); // Supprimer
-        Route::get('/{document}/download', [DocumentController::class, 'download']); // Télécharger
     });
 });
 
@@ -325,17 +331,12 @@ Route::middleware([
     // Dashboard principal
     Route::get('/dashboard', [EtudiantController::class, 'dashboard']);
     
-    // Bulletins académiques
-    Route::get('/bulletins', [EtudiantController::class, 'bulletins']);
-    
     // Notes détaillées
     Route::get('/notes', [EtudiantController::class, 'notes']);
     
     // Cours inscrits
     Route::get('/cours', [EtudiantController::class, 'cours']);
 
-    // Téléchargement PDF d'un bulletin
-    Route::get('/bulletins/{bulletin}/pdf', [EtudiantController::class, 'downloadBulletin']);
 
     // -------------------------------------------------------------------------
     // Emploi du temps étudiant
@@ -351,14 +352,12 @@ Route::middleware([
     // -------------------------------------------------------------------------
     // Annonces visibles pour l'étudiant
     // -------------------------------------------------------------------------
-    Route::get('/annonces', [EtudiantController::class, 'annonces']);
+    Route::get('/annonces', [AnnonceEtudiantController::class, 'index']);
 
     // -------------------------------------------------------------------------
     // Documents partagés au niveau étudiant
     // -------------------------------------------------------------------------
-    // TODO: implémenter les routes documents pour les étudiants
-    // Route::prefix('documents')->group(function () {
-    //     Route::get('/', [DocumentEtudiantController::class, 'index']);
-    //     Route::get('/{document}/download', [DocumentEtudiantController::class, 'download']);
-    // });
+    Route::prefix('documents')->group(function () {
+        Route::get('/', [DocumentController::class, 'index']);
+    });
 });

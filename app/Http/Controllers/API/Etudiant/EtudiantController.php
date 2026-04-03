@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\API\Etudiant;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Etudiant\BulletinEtudiantResource;
 use App\Http\Resources\Etudiant\NoteEtudiantResource;
-use App\Models\Bulletin;
 use App\Models\Cours;
 use App\Models\Inscription;
 use App\Models\Note;
@@ -35,12 +33,6 @@ class EtudiantController extends Controller
 
         return Cache::remember($cacheKey, CacheService::SHORT_TTL, function () use ($etudiant) {
             return DB::transaction(function () use ($etudiant) {
-                // Statut académique (Dernier bulletin généré)
-                $bulletinSemestre = Bulletin::where('etudiant_id', $etudiant->id)
-                    ->whereNotNull('semestre_id')
-                    ->latest('created_at')
-                    ->first();
-
                 // Cours actuels (via inscriptions)
                 $coursActuels = Cours::whereHas('inscriptions', fn($q) => $q->where('etudiant_id', $etudiant->id))
                     ->with(['niveau.filiere'])
@@ -54,13 +46,6 @@ class EtudiantController extends Controller
                     ->limit(3)
                     ->get();
 
-                // Bulletins récents (Top 2)
-                $derniersBulletins = Bulletin::where('etudiant_id', $etudiant->id)
-                    ->with(['semestre.anneeAcademique'])
-                    ->orderByDesc('date_generation')
-                    ->limit(2)
-                    ->get();
-
                 return response()->json([
                     'etudiant' => [
                         'id' => $etudiant->id,
@@ -68,8 +53,7 @@ class EtudiantController extends Controller
                         'matricule' => $etudiant->matricule,
                         'filiere' => $etudiant->niveau->filiere->nom ?? null,
                         'niveau' => $etudiant->niveau->nom ?? null,
-                        'statut_academique' => $bulletinSemestre?->decision ?? 'actif',
-                        'moyenne_actuelle' => $bulletinSemestre ? (float)$bulletinSemestre->moyenne_generale : null,
+                        'statut_academique' => $etudiant->statut?->label() ?? 'actif',
                     ],
                     'cours' => $coursActuels->map(fn($c) => [
                         'id' => $c->id,
@@ -79,34 +63,9 @@ class EtudiantController extends Controller
                     ]),
                     'activites_recentes' => [
                         'nouvelles_notes' => NoteEtudiantResource::collection($dernieresNotes),
-                        'bulletins' => BulletinEtudiantResource::collection($derniersBulletins),
                     ],
                 ]);
             }, 3); // Tentatives en cas de deadlock
-        });
-    }
-
-    /**
-     * Liste des bulletins de l'étudiant
-     */
-    public function bulletins(Request $request)
-    {
-        $etudiant = $request->user()->etudiant;
-        $this->authorize('consulterBulletins', $etudiant);
-
-        // Clé dynamique basée sur la page de pagination
-        $page = $request->get('page', 1);
-        $cacheKey = "etudiant:{$etudiant->id}:bulletins:page:{$page}";
-
-        return Cache::remember($cacheKey, CacheService::DEFAULT_TTL, function () use ($etudiant) {
-            return DB::transaction(function () use ($etudiant) {
-                $bulletins = Bulletin::where('etudiant_id', $etudiant->id)
-                    ->with(['semestre.anneeAcademique'])
-                    ->orderByDesc('date_generation')
-                    ->paginate(10);
-
-                return BulletinEtudiantResource::collection($bulletins);
-            });
         });
     }
 

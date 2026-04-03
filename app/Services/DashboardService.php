@@ -9,7 +9,6 @@ use App\Models\Filiere;
 use App\Models\Niveau;
 use App\Models\LogActivite;
 use App\Models\Note;
-use App\Models\Bulletin;
 use App\Models\AnneeAcademique;
 use App\Models\Semestre;
 use App\Http\Resources\Admin\FiliereStatResource;
@@ -26,12 +25,10 @@ class DashboardService
         // Base queries avec filtres
         $etudiantsQuery = Etudiant::query();
         $coursQuery = Cours::query();
-        $bulletinsQuery = Bulletin::query();
         $notesQuery = Note::query();
 
         // Appliquer les filtres
         if ($semestreId) {
-            $bulletinsQuery->where('semestre_id', $semestreId);
             $notesQuery->whereHas('evaluation', fn($q) => $q->where('semestre_id', $semestreId));
         }
         if ($filiereId) {
@@ -51,16 +48,14 @@ class DashboardService
             'etudiants_par_filiere' => $this->getEtudiantsParFiliere($anneeId, $semestreId, $filiereId, $niveauId),
             'etudiants_par_sexe' => $this->getEtudiantsParSexe($etudiantsQuery),
             'etudiants_par_niveau' => $this->getEtudiantsParNiveau($anneeId, $semestreId, $filiereId, $niveauId),
-            'taux_reussite_par_filiere' => $this->calculerTauxReussite($anneeId, $semestreId, $filiereId, $niveauId),
             'professeurs_plus_charges' => $this->getProfesseursCharges($anneeId, $semestreId, $filiereId, $niveauId),
         ];
 
         // Statistiques académiques
         $academique = [
             'moyenne_generale' => round($notesQuery->avg('note') ?? 0, 2),
-            'taux_reussite_global' => $this->calculerTauxReussiteGlobal($bulletinsQuery, $etudiantsQuery),
+            'taux_reussite_global' => 0,
             'notes_saisies' => $notesQuery->count(),
-            'bulletins_genres' => $bulletinsQuery->count(),
         ];
 
         return compact('resume', 'charts', 'academique');
@@ -92,17 +87,6 @@ class DashboardService
     public function getAlertes()
     {
         $alerts = [];
-        
-        $etudiantsSansBulletin = Etudiant::whereDoesntHave('bulletins')->count();
-        if ($etudiantsSansBulletin > 0) {
-            $alerts[] = [
-                'type' => 'warning',
-                'title' => 'Étudiants sans bulletin',
-                'message' => "{$etudiantsSansBulletin} étudiants n'ont pas de bulletin généré",
-                'action' => '/admin/bulletins'
-            ];
-        }
-
         $coursSansEvaluations = Cours::whereDoesntHave('evaluations')->count();
         if ($coursSansEvaluations > 0) {
             $alerts[] = [
@@ -247,44 +231,6 @@ class DashboardService
                 'cours' => $p->cours_count ?? 0,
                 'etudiants' => $p->cours->sum(fn($c) => ($c->etudiants ?? collect())->count())
             ]);
-    }
-
-    private function calculerTauxReussite($anneeId, $semestreId, $filiereId, $niveauId)
-    {
-        $filieres = Filiere::query();
-        
-        if ($filiereId) {
-            $filieres->where('id', $filiereId);
-        }
-
-        $filieres = $filieres->with(['niveaux.etudiants.bulletins' => function($q) use ($semestreId) {
-            if ($semestreId) {
-                $q->where('semestre_id', $semestreId);
-            }
-        }])->get();
-
-        return $filieres->mapWithKeys(function($filiere) {
-            $niveaux = $filiere->niveaux ?? collect();
-            $total = $niveaux->flatMap->etudiants->count();
-            
-            $admis = $niveaux->flatMap->etudiants
-                ->flatMap(function($etudiant) {
-                    return $etudiant->bulletins ?? collect();
-                })
-                ->where('decision', 'admis')
-                ->count();
-            
-            return [$filiere->nom => $total ? round(($admis / $total) * 100, 1) : 0];
-        })->all();
-    }
-
-    private function calculerTauxReussiteGlobal($bulletinsQuery, $etudiantsQuery)
-    {
-        $totalEtudiants = $etudiantsQuery->count();
-        if ($totalEtudiants === 0) return 0;
-
-        $admis = $bulletinsQuery->where('decision', 'admis')->count();
-        return round(($admis / $totalEtudiants) * 100, 1);
     }
 
     private function getActionIcon(string $action): string

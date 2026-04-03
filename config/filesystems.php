@@ -24,9 +24,9 @@ return [
         // DISQUE DOCUMENTS AJOUTÉ
         'documents' => [
             'driver' => 'local',
-            'root' => storage_path('app/public/documents'),
-            'url' => env('APP_URL').'/storage/documents',
-            'visibility' => 'public',
+            // Stockage privé (aucune URL publique)
+            'root' => storage_path('app/documents'),
+            'visibility' => 'private',
             'throw' => false,
             'report' => false,
         ],
