@@ -2901,3 +2901,12 @@ Pour toute question ou problème :
 3. Vérifier les migrations : `php artisan migrate:status`
 4. Tester les endpoints avec Postman
 5. Consulter les sources des Controllers et Models
+
+---
+
+## 👤 Auteur
+
+Développé par **Mahamane Korobara**, développeur full-stack.
+
+- 🌐 Portfolio & blog technique : **[sahelstack.tech](https://www.sahelstack.tech)**
+- 💼 GitHub : [@Mahamane-Korobara](https://github.com/Mahamane-Korobara)
